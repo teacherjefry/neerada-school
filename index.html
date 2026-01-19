@@ -32,6 +32,11 @@
         
         /* Logo Styling */
         #sidebar-logo-container img { max-height: 40px; width: auto; }
+        
+        /* Mobile Menu Animation */
+        #public-mobile-menu { transition: transform 0.3s ease-in-out; }
+        #public-mobile-menu.hidden { transform: translateY(-100%); }
+        #public-mobile-menu:not(.hidden) { transform: translateY(0); }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 h-screen flex overflow-hidden">
@@ -204,10 +209,41 @@
         const $ = (selector) => document.querySelector(selector);
         const $$ = (selector) => document.querySelectorAll(selector);
 
+        // Helper to compress images before converting to Base64 (fixes "upload not working" due to 1MB Firestore limit)
         const fileToBase64 = (file) => new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.readAsDataURL(file);
-            reader.onload = () => resolve(reader.result);
+            reader.onload = (event) => {
+                const img = new Image();
+                img.src = event.target.result;
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    // Max dimension 800px to keep size small
+                    const MAX_WIDTH = 800;
+                    const MAX_HEIGHT = 800;
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > height) {
+                        if (width > MAX_WIDTH) {
+                            height *= MAX_WIDTH / width;
+                            width = MAX_WIDTH;
+                        }
+                    } else {
+                        if (height > MAX_HEIGHT) {
+                            width *= MAX_HEIGHT / height;
+                            height = MAX_HEIGHT;
+                        }
+                    }
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    // Compress to JPEG 70% quality
+                    resolve(canvas.toDataURL('image/jpeg', 0.7)); 
+                };
+                img.onerror = (e) => reject(e);
+            };
             reader.onerror = error => reject(error);
         });
 
@@ -374,16 +410,36 @@ let firebaseConfig = {
                                         <span class="text-xs font-bold tracking-[0.2em] text-emerald-600 uppercase">School</span>
                                     </div>
                                 </div>
+                                
+                                <!-- Desktop Links -->
                                 <div class="hidden md:flex items-center gap-8 text-sm font-semibold text-slate-600">
                                     <button onclick="neeradaApp.navigate('home')" class="hover:text-emerald-600 transition-colors">Home</button>
                                     <button onclick="neeradaApp.navigate('public-admin')" class="hover:text-emerald-600 transition-colors">Administration</button>
                                     <button onclick="neeradaApp.navigate('public-teachers')" class="hover:text-emerald-600 transition-colors">Teachers</button>
                                     <button onclick="neeradaApp.navigate('public-staff')" class="hover:text-emerald-600 transition-colors">Staff</button>
+                                    <button onclick="neeradaApp.navigate('public-students')" class="hover:text-emerald-600 transition-colors">Students</button>
                                 </div>
-                                <button onclick="neeradaApp.login()" class="bg-slate-900 hover:bg-emerald-600 text-white px-8 py-3 rounded-full text-sm font-medium transition-all shadow-xl hover:shadow-emerald-500/30 transform hover:-translate-y-0.5">
-                                    ${neeradaApp.isLoggedIn ? 'Dashboard' : 'Login'}
-                                </button>
+
+                                <div class="flex items-center gap-4">
+                                    <button onclick="neeradaApp.login()" class="hidden md:block bg-slate-900 hover:bg-emerald-600 text-white px-8 py-3 rounded-full text-sm font-medium transition-all shadow-xl hover:shadow-emerald-500/30 transform hover:-translate-y-0.5">
+                                        ${neeradaApp.isLoggedIn ? 'Dashboard' : 'Login'}
+                                    </button>
+                                    <!-- Mobile Menu Button -->
+                                    <button onclick="neeradaApp.togglePublicMenu()" class="md:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg">
+                                        <i class="ph ph-list text-2xl"></i>
+                                    </button>
+                                </div>
                             </div>
+                        </div>
+                        
+                        <!-- Mobile Menu Dropdown -->
+                        <div id="public-mobile-menu" class="hidden absolute top-24 left-0 w-full bg-white border-t border-slate-100 shadow-xl py-4 px-6 flex flex-col gap-4 md:hidden">
+                            <button onclick="neeradaApp.navigate('home')" class="text-left font-semibold text-slate-600 py-2 border-b border-slate-50">Home</button>
+                            <button onclick="neeradaApp.navigate('public-admin')" class="text-left font-semibold text-slate-600 py-2 border-b border-slate-50">Administration</button>
+                            <button onclick="neeradaApp.navigate('public-teachers')" class="text-left font-semibold text-slate-600 py-2 border-b border-slate-50">Teachers</button>
+                            <button onclick="neeradaApp.navigate('public-staff')" class="text-left font-semibold text-slate-600 py-2 border-b border-slate-50">Staff</button>
+                            <button onclick="neeradaApp.navigate('public-students')" class="text-left font-semibold text-slate-600 py-2 border-b border-slate-50">Students</button>
+                            <button onclick="neeradaApp.login()" class="mt-2 bg-slate-900 text-white py-3 rounded-lg font-bold">${neeradaApp.isLoggedIn ? 'Go to Dashboard' : 'Login'}</button>
                         </div>
                     </nav>
                 `;
@@ -785,6 +841,65 @@ let firebaseConfig = {
                 `;
             }
 
+            async renderPublicStudents() {
+                this.setupPublicView();
+                // Fetch students
+                const students = await neeradaApp.db.getAll('students');
+                
+                // Group by Grade for cleaner display
+                const grouped = {};
+                students.forEach(s => {
+                    const g = s.grade || 'Unassigned';
+                    if(!grouped[g]) grouped[g] = [];
+                    grouped[g].push(s);
+                });
+
+                // Sort grades
+                const grades = Object.keys(grouped).sort();
+
+                let gridContent = '';
+                if(grades.length === 0) {
+                    gridContent = `<div class="col-span-full text-center py-20 text-slate-400 bg-white rounded-3xl border-2 border-dashed border-slate-200">No student records found.</div>`;
+                } else {
+                    gridContent = grades.map(grade => `
+                        <div class="bg-white p-8 rounded-2xl shadow-lg mb-8">
+                            <h3 class="text-2xl font-serif font-bold text-slate-800 mb-6 border-b pb-2 border-slate-100 flex items-center gap-3">
+                                <i class="ph ph-student text-blue-500"></i> ${grade}
+                            </h3>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                                ${grouped[grade].map(s => `
+                                    <div class="flex items-center p-3 bg-slate-50 rounded-xl border border-slate-100 hover:border-blue-200 transition-colors">
+                                        <div class="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm mr-3 shrink-0">
+                                            ${s.name.charAt(0)}
+                                        </div>
+                                        <div class="truncate">
+                                            <p class="font-medium text-slate-800 truncate">${s.name}</p>
+                                            <!-- Optional: Hide sensitive info publically -->
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `).join('');
+                }
+
+                this.contentArea.innerHTML = `
+                    <div class="min-h-full flex flex-col bg-slate-50 fade-in font-sans">
+                        ${this.renderPublicNavbar()}
+                        <div class="pt-32 pb-20 px-6 max-w-7xl mx-auto w-full">
+                            <div class="text-center mb-16">
+                                <h2 class="text-4xl md:text-5xl font-bold text-slate-900 mb-4 font-serif">Our Students</h2>
+                                <div class="w-24 h-1.5 bg-gradient-to-r from-blue-500 to-indigo-500 mx-auto rounded-full mb-6"></div>
+                                <p class="text-slate-600 text-lg max-w-2xl mx-auto">The bright minds shaping the future of our community.</p>
+                            </div>
+                            <div class="max-w-6xl mx-auto">
+                                ${gridContent}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
             // --- SETTINGS RENDERER ---
             renderSettings(currentSettings) {
                 this.sidebar.classList.remove('hidden');
@@ -1089,8 +1204,18 @@ let firebaseConfig = {
                 this.navigate('home');
             }
 
+            togglePublicMenu() {
+                const menu = document.getElementById('public-mobile-menu');
+                menu.classList.toggle('hidden');
+            }
+
             async navigate(view, params = {}) {
                 this.currentView = view;
+                
+                // Hide public menu on nav
+                const menu = document.getElementById('public-mobile-menu');
+                if(menu) menu.classList.add('hidden');
+
                 // Sidebar active state
                 $$('.nav-item').forEach(btn => {
                     btn.classList.remove('bg-slate-800', 'text-white');
@@ -1116,6 +1241,7 @@ let firebaseConfig = {
                         this.ui.renderPublicTeachers(viewState, teachersList);
                         break;
                     case 'public-staff': this.ui.renderPublicStaff(); break;
+                    case 'public-students': this.ui.renderPublicStudents(); break;
                     
                     // Private Routes
                     case 'dashboard':
