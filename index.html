@@ -31,8 +31,11 @@
         .image-preview { width: 100px; height: 100px; border-radius: 8px; object-fit: cover; border: 1px solid #cbd5e1; margin-top: 10px; background-color: #f8fafc; }
         
         /* Logo Styling */
-        #sidebar-logo-container img { max-height: 40px; width: auto; background: white; padding: 2px; border-radius: 4px; }
+        #sidebar-logo-container img { height: 40px; width: 40px; background: white; padding: 2px; border-radius: 50%; object-fit: cover; }
         
+        /* Sidebar Placeholder */
+        #sidebar-logo-placeholder { width: 40px; height: 40px; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 0.75rem; }
+
         /* Mobile Menu Animation */
         #public-mobile-menu { transition: transform 0.3s ease-in-out; }
         #public-mobile-menu.hidden { transform: translateY(-100%); }
@@ -45,8 +48,11 @@
     <aside class="w-64 bg-slate-900 text-white flex-col hidden md:flex transition-all duration-300 shadow-xl z-20" id="sidebar">
         <div class="h-16 flex items-center px-6 border-b border-slate-700" id="sidebar-header">
             <div id="sidebar-logo-container" class="flex items-center">
-                <i class="ph ph-graduation-cap text-3xl text-blue-400 mr-3" id="default-sidebar-icon"></i>
-                <!-- Logo img injected here via JS -->
+                <!-- Circular White Placeholder -->
+                <div id="sidebar-logo-placeholder">
+                    <i class="ph ph-graduation-cap text-2xl text-blue-600"></i>
+                </div>
+                <!-- Logo img injected here via JS if uploaded -->
                 <span class="font-bold text-xl tracking-tight">Neerada School</span>
             </div>
         </div>
@@ -368,28 +374,35 @@
                 if (!logoData) return;
                 const container = $('#sidebar-logo-container');
                 if (container) {
-                    const existingImg = container.querySelector('img');
-                    if (existingImg) {
-                        existingImg.src = logoData;
-                        // Ensured white background for sidebar logo as requested
-                        existingImg.style.backgroundColor = 'white';
-                    } else {
-                        const icon = $('#default-sidebar-icon');
-                        if (icon) icon.remove();
-                        const img = document.createElement('img');
+                    // Check if img exists inside container, else replace placeholder
+                    let img = container.querySelector('img');
+                    
+                    if (img) {
                         img.src = logoData;
-                        img.className = "mr-3 rounded object-cover";
-                        img.style.backgroundColor = 'white';
-                        container.insertBefore(img, container.firstChild);
+                    } else {
+                        // Find placeholder and replace it
+                        const placeholder = container.querySelector('#sidebar-logo-placeholder');
+                        if (placeholder) {
+                            img = document.createElement('img');
+                            img.src = logoData;
+                            img.className = "mr-3 object-cover";
+                            img.style.height = "40px";
+                            img.style.width = "40px";
+                            img.style.backgroundColor = "white";
+                            img.style.padding = "2px";
+                            img.style.borderRadius = "50%";
+                            container.insertBefore(img, placeholder);
+                            placeholder.remove();
+                        }
                     }
                 }
             }
 
             renderPublicNavbar() {
-                // Ensure white background for logo; removed "flower" fallback
+                // Circular White Background for Logo
                 const logoHtml = neeradaApp.settings.logo ? 
-                    `<div class="bg-white rounded-lg p-1 mr-2"><img src="${neeradaApp.settings.logo}" class="w-10 h-10 object-contain"></div>` : 
-                    ``;
+                    `<div class="bg-white rounded-full overflow-hidden p-1 mr-2 shadow-md w-10 h-10 flex items-center justify-center shrink-0"><img src="${neeradaApp.settings.logo}" class="w-full h-full object-cover rounded-full"></div>` : 
+                    `<div class="bg-white rounded-full overflow-hidden p-1 mr-2 shadow-md w-10 h-10 flex items-center justify-center shrink-0"><i class="ph ph-graduation-cap text-blue-600 text-xl"></i></div>`;
 
                 return `
                     <nav class="fixed w-full z-50 transition-all duration-300 bg-white/95 backdrop-blur-md border-b border-emerald-100/50 shadow-sm">
@@ -498,7 +511,8 @@
                                     </div>
                                     <div class="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all group">
                                         <div class="h-48 overflow-hidden relative">
-                                            <img src="https://images.unsplash.com/photo-1523240795612-9a054b0db644?q=80&w=2000&auto=format&fit=crop" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700">
+                                            <!-- UPDATED IMAGE: Science Lab/Classroom for Secondary -->
+                                            <img src="https://images.unsplash.com/photo-1576267423445-b2e0074d68a4?q=80&w=2000&auto=format&fit=crop" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700">
                                             <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
                                             <div class="absolute bottom-4 left-4 text-white">
                                                 <h3 class="text-xl font-bold">Secondary School</h3>
@@ -574,7 +588,8 @@
                         </div>
                     `;
                 } else if (viewState.step === 'dept') {
-                    const depts = [{ name: 'Kindergarten', img: 'https://images.unsplash.com/photo-1587654780291-39c9404d746b?q=80&w=600&auto=format&fit=crop' }, { name: 'Primary', img: 'https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=600&auto=format&fit=crop' }, { name: 'Secondary', img: 'https://images.unsplash.com/photo-1427504746696-ea5abd7dfe5b?q=80&w=600&auto=format&fit=crop' }, { name: 'English', img: 'https://images.unsplash.com/photo-1543269865-cbf427effbad?q=80&w=600&auto=format&fit=crop' }];
+                    // Update Secondary Image here as well to keep consistency
+                    const depts = [{ name: 'Kindergarten', img: 'https://images.unsplash.com/photo-1587654780291-39c9404d746b?q=80&w=600&auto=format&fit=crop' }, { name: 'Primary', img: 'https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=600&auto=format&fit=crop' }, { name: 'Secondary', img: 'https://images.unsplash.com/photo-1576267423445-b2e0074d68a4?q=80&w=600&auto=format&fit=crop' }, { name: 'English', img: 'https://images.unsplash.com/photo-1543269865-cbf427effbad?q=80&w=600&auto=format&fit=crop' }];
                     const cards = depts.map(d => `<div onclick="neeradaApp.navigate('public-teachers', { step: 'list', campus: '${viewState.campus}', dept: '${d.name}' })" class="bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all cursor-pointer overflow-hidden group h-64 relative"><img src="${d.img}" class="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"><div class="absolute inset-0 bg-slate-900/50"></div><div class="absolute inset-0 flex flex-col items-center justify-center text-white"><h3 class="text-2xl font-bold font-serif mb-2">${d.name}</h3></div></div>`).join('');
                     content = `<div class="max-w-7xl mx-auto"><button onclick="neeradaApp.navigate('public-teachers')" class="mb-8 text-slate-500 hover:text-slate-900 flex items-center gap-2 font-medium transition-colors"><i class="ph ph-arrow-left"></i> Back</button><div class="text-center mb-16"><h2 class="text-4xl font-bold text-slate-900 font-serif">Select Department</h2></div><div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">${cards}</div></div>`;
                 } else if (viewState.step === 'list') {
@@ -681,7 +696,8 @@
                                 <div>
                                     <label class="block text-sm font-medium text-slate-700 mb-2">School Logo</label>
                                     <div class="flex items-center gap-6">
-                                        <div class="w-24 h-24 rounded-xl bg-slate-100 border-2 border-dashed border-slate-300 flex items-center justify-center overflow-hidden relative">
+                                        <!-- Circular Settings Preview -->
+                                        <div class="w-24 h-24 rounded-full bg-slate-100 border-2 border-dashed border-slate-300 flex items-center justify-center overflow-hidden relative">
                                             ${logoSrc ? `<img src="${logoSrc}" id="settings-logo-preview" class="w-full h-full object-cover">` : `<i class="ph ph-image text-3xl text-slate-400" id="settings-logo-icon"></i>`}
                                         </div>
                                         <div class="flex-1">
