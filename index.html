@@ -28,10 +28,10 @@
         .toast.info { background-color: #3B82F6; }
 
         /* File Upload Preview */
-        .image-preview { width: 100px; height: 130px; border-radius: 8px; object-fit: cover; border: 2px solid #e2e8f0; margin-top: 10px; }
+        .image-preview { width: 100px; height: 100px; border-radius: 8px; object-fit: cover; border: 1px solid #cbd5e1; margin-top: 10px; background-color: #f8fafc; }
         
         /* Logo Styling */
-        #sidebar-logo-container img { max-height: 40px; width: auto; }
+        #sidebar-logo-container img { max-height: 40px; width: auto; background: white; padding: 2px; border-radius: 4px; }
         
         /* Mobile Menu Animation */
         #public-mobile-menu { transition: transform 0.3s ease-in-out; }
@@ -210,6 +210,7 @@
         const $$ = (selector) => document.querySelectorAll(selector);
 
         // Helper to compress images before converting to Base64 (fixes "upload not working" due to 1MB Firestore limit)
+        // INCREASED COMPRESSION to ensure files save correctly
         const fileToBase64 = (file) => new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.readAsDataURL(file);
@@ -218,9 +219,9 @@
                 img.src = event.target.result;
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
-                    // Max dimension 800px to keep size small
-                    const MAX_WIDTH = 800;
-                    const MAX_HEIGHT = 800;
+                    // Aggressive compression: Max 500px to ensure < 1MB
+                    const MAX_WIDTH = 500;
+                    const MAX_HEIGHT = 500;
                     let width = img.width;
                     let height = img.height;
 
@@ -239,8 +240,8 @@
                     canvas.height = height;
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, width, height);
-                    // Compress to JPEG 70% quality
-                    resolve(canvas.toDataURL('image/jpeg', 0.7)); 
+                    // Compress to JPEG 50% quality for small string size
+                    resolve(canvas.toDataURL('image/jpeg', 0.5)); 
                 };
                 img.onerror = (e) => reject(e);
             };
@@ -249,24 +250,20 @@
 
         // ---------------------------------------------------------------
         // FIREBASE CONFIGURATION
-        // If uploading to GitHub, replace the 'firebaseConfig' object below with your own 
-        // from the Firebase Console (Project Settings -> General -> Your Apps -> SDK Setup/Config)
         // ---------------------------------------------------------------
-let firebaseConfig = {
-  apiKey: "AIzaSyDlzTfWGTOrEnYEYib6aB74IPBGGLuTn6k",
-  authDomain: "neerada-school.firebaseapp.com",
-  projectId: "neerada-school",
-  storageBucket: "neerada-school.firebasestorage.app",
-  messagingSenderId: "841887574795",
-  appId: "1:841887574795:web:8f2b4120ca23ea81fc500e"
-};
+        let firebaseConfig = {
+            apiKey: "AIzaSyDlzTfWGTOrEnYEYib6aB74IPBGGLuTn6k",
+            authDomain: "neerada-school.firebaseapp.com",
+            projectId: "neerada-school",
+            storageBucket: "neerada-school.firebasestorage.app",
+            messagingSenderId: "841887574795",
+            appId: "1:841887574795:web:8f2b4120ca23ea81fc500e"
+        };
 
-        // This checks if we are running in the preview environment where variables are pre-injected
         if (typeof __firebase_config !== 'undefined') {
             firebaseConfig = JSON.parse(__firebase_config);
         }
 
-        // Initialize Firebase
         const firebaseApp = initializeApp(firebaseConfig);
         const auth = getAuth(firebaseApp);
         const db = getFirestore(firebaseApp);
@@ -283,13 +280,10 @@ let firebaseConfig = {
         // --- Database Service (Firestore) ---
         class DBService {
             constructor() {
-                // Using a 'public' data path so all users/staff see the same data in this demo.
-                // For a real app, you might partition this by school ID or user ID.
                 this.basePath = ['artifacts', appId, 'public', 'data']; 
             }
 
             async connect() {
-                // Wait for auth before trying to access DB
                 if (!auth.currentUser) {
                     await initAuth();
                 }
@@ -308,12 +302,10 @@ let firebaseConfig = {
 
             async add(collectionName, item) {
                 const ref = collection(db, ...this.basePath, collectionName);
-                // Ensure no ID is sent to addDoc (it generates one)
                 if (item.id) delete item.id;
                 await addDoc(ref, item);
             }
 
-            // Custom method to set specific document (useful for settings)
             async set(collectionName, docId, data) {
                 const ref = doc(db, ...this.basePath, collectionName, docId);
                 await setDoc(ref, data);
@@ -322,7 +314,7 @@ let firebaseConfig = {
             async update(collectionName, item) {
                 const id = item.id;
                 const data = { ...item };
-                delete data.id; // Don't save the ID inside the document data
+                delete data.id; 
                 const ref = doc(db, ...this.basePath, collectionName, id);
                 await updateDoc(ref, data);
             }
@@ -343,16 +335,11 @@ let firebaseConfig = {
                 this.modal = $('#form-modal');
                 this.modalOverlay = $('#modal-overlay');
                 this.modalContent = $('#form-modal-content');
-                
-                // Login Modal
                 this.loginModal = $('#login-modal');
                 this.loginModalContent = $('#login-modal-content');
-
-                // View Modal
                 this.viewModal = $('#view-modal');
                 this.viewModalContent = $('#view-modal-content');
                 this.viewModalBody = $('#view-modal-body');
-                
                 this.toastContainer = $('#toast-container');
             }
 
@@ -372,31 +359,29 @@ let firebaseConfig = {
 
             updateLogo(logoData) {
                 if (!logoData) return;
-                
-                // Update Sidebar Logo
                 const container = $('#sidebar-logo-container');
                 if (container) {
                     const existingImg = container.querySelector('img');
                     if (existingImg) {
                         existingImg.src = logoData;
+                        // Ensured white background for sidebar logo as requested
+                        existingImg.style.backgroundColor = 'white';
                     } else {
-                        // Remove icon if exists
                         const icon = $('#default-sidebar-icon');
                         if (icon) icon.remove();
-                        // Add img
                         const img = document.createElement('img');
                         img.src = logoData;
                         img.className = "mr-3 rounded object-cover";
+                        img.style.backgroundColor = 'white';
                         container.insertBefore(img, container.firstChild);
                     }
                 }
             }
 
-            // --- PUBLIC VIEW METHODS ---
-
             renderPublicNavbar() {
+                // Ensure white background for logo
                 const logoHtml = neeradaApp.settings.logo ? 
-                    `<img src="${neeradaApp.settings.logo}" class="w-12 h-12 rounded-xl shadow-lg shadow-emerald-200 group-hover:scale-105 transition-transform object-cover">` : 
+                    `<div class="bg-white rounded-xl overflow-hidden p-1 shadow-sm"><img src="${neeradaApp.settings.logo}" class="w-10 h-10 object-contain"></div>` : 
                     ``;
 
                 return `
@@ -410,8 +395,6 @@ let firebaseConfig = {
                                         <span class="text-[10px] md:text-xs font-bold tracking-[0.2em] text-emerald-600 uppercase">School</span>
                                     </div>
                                 </div>
-                                
-                                <!-- Desktop Links -->
                                 <div class="hidden md:flex items-center gap-8 text-sm font-semibold text-slate-600">
                                     <button onclick="neeradaApp.navigate('home')" class="hover:text-emerald-600 transition-colors">Home</button>
                                     <button onclick="neeradaApp.navigate('public-admin')" class="hover:text-emerald-600 transition-colors">Administration</button>
@@ -419,15 +402,12 @@ let firebaseConfig = {
                                     <button onclick="neeradaApp.navigate('public-staff')" class="hover:text-emerald-600 transition-colors">Staff</button>
                                     <button onclick="neeradaApp.navigate('public-students')" class="hover:text-emerald-600 transition-colors">Students</button>
                                 </div>
-
                                 <div class="flex items-center gap-4">
                                     <button onclick="neeradaApp.login()" class="bg-slate-900 hover:bg-emerald-600 text-white px-4 md:px-8 py-2 md:py-3 rounded-full text-xs md:text-sm font-medium transition-all shadow-xl hover:shadow-emerald-500/30 transform hover:-translate-y-0.5">
                                         ${neeradaApp.isLoggedIn ? 'Dashboard' : 'Login'}
                                     </button>
                                 </div>
                             </div>
-                            
-                            <!-- Mobile Navigation Tabs (Scrollable) -->
                             <div class="md:hidden overflow-x-auto hide-scrollbar pb-3 -mx-4 px-4 flex gap-6 text-sm font-medium text-slate-600 border-t border-slate-100 pt-3">
                                 <button onclick="neeradaApp.navigate('home')" class="whitespace-nowrap hover:text-emerald-600 flex-shrink-0">Home</button>
                                 <button onclick="neeradaApp.navigate('public-admin')" class="whitespace-nowrap hover:text-emerald-600 flex-shrink-0">Administration</button>
@@ -452,8 +432,6 @@ let firebaseConfig = {
                 this.contentArea.innerHTML = `
                     <div class="min-h-full flex flex-col bg-white fade-in font-sans scroll-smooth">
                         ${this.renderPublicNavbar()}
-                        
-                        <!-- Hero Section -->
                         <div class="relative h-screen flex items-center justify-center overflow-hidden bg-slate-900">
                              <div class="absolute inset-0 z-0">
                                 <img src="https://images.unsplash.com/photo-1541829070764-84a7d30dd3f3?q=80&w=2069&auto=format&fit=crop" class="w-full h-full object-cover scale-105 animate-[pulse_10s_ease-in-out_infinite]" alt="School Campus" onerror="this.src='https://placehold.co/1920x1080?text=Neerada+School+Campus';">
@@ -473,59 +451,10 @@ let firebaseConfig = {
                                     </button>
                                 </div>
                             </div>
-                            <!-- Scroll Indicator -->
                             <div class="absolute bottom-10 left-1/2 transform -translate-x-1/2 animate-bounce text-white/50">
                                 <i class="ph ph-arrow-down text-3xl"></i>
                             </div>
                         </div>
-
-                        <!-- Quick Stats Strip -->
-                        <div class="bg-emerald-900 text-white py-12 relative z-20 -mt-8 mx-4 md:mx-12 rounded-xl shadow-2xl grid grid-cols-2 md:grid-cols-4 gap-8 text-center divide-x divide-emerald-800/50">
-                            <div class="p-4">
-                                <div class="text-4xl font-serif font-bold text-emerald-300 mb-1">2</div>
-                                <div class="text-xs uppercase tracking-widest opacity-80">Campuses</div>
-                            </div>
-                            <div class="p-4">
-                                <div class="text-4xl font-serif font-bold text-emerald-300 mb-1">1500+</div>
-                                <div class="text-xs uppercase tracking-widest opacity-80">Students</div>
-                            </div>
-                            <div class="p-4">
-                                <div class="text-4xl font-serif font-bold text-emerald-300 mb-1">100%</div>
-                                <div class="text-xs uppercase tracking-widest opacity-80">Pass Rate</div>
-                            </div>
-                            <div class="p-4">
-                                <div class="text-4xl font-serif font-bold text-emerald-300 mb-1">25+</div>
-                                <div class="text-xs uppercase tracking-widest opacity-80">Years</div>
-                            </div>
-                        </div>
-
-                        <!-- Welcome / Philosophy Section -->
-                        <div class="py-24 px-6 max-w-7xl mx-auto">
-                            <div class="grid md:grid-cols-2 gap-16 items-center">
-                                <div class="space-y-8 order-2 md:order-1">
-                                    <div class="inline-flex items-center gap-2 text-blue-600 font-bold tracking-widest uppercase text-sm">
-                                        <span class="w-8 h-[2px] bg-blue-600"></span>
-                                        Welcome to Neerada
-                                    </div>
-                                    <h2 class="text-5xl font-bold text-slate-900 leading-[1.1] font-serif">
-                                        Nurturing Minds,<br>
-                                        <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-emerald-600">Building Character.</span>
-                                    </h2>
-                                    <p class="text-slate-600 text-lg leading-relaxed font-light">
-                                        At Neerada School, education goes beyond textbooks. We believe in fostering an environment where critical thinking, emotional intelligence, and creativity flourish side by side with nature. Our dual-campus approach ensures specialized attention for every age group.
-                                    </p>
-                                </div>
-                                <div class="relative group order-1 md:order-2">
-                                    <div class="absolute -inset-4 bg-gradient-to-tr from-blue-100 to-emerald-100 rounded-[2.5rem] transform rotate-3 group-hover:rotate-1 transition-transform duration-700 opacity-70"></div>
-                                    <img src="https://images.unsplash.com/photo-1544531586-fde5298cdd40?q=80&w=2070&auto=format&fit=crop" class="relative rounded-2xl shadow-2xl w-full h-[500px] object-cover transform transition-transform duration-500 group-hover:scale-[1.01]" alt="Student Learning" onerror="this.src='https://placehold.co/600x400?text=Student+Learning'">
-                                    <div class="absolute bottom-8 left-8 bg-white/90 backdrop-blur-md p-6 rounded-xl shadow-lg max-w-xs border-l-4 border-emerald-500">
-                                        <p class="font-serif italic text-slate-800">"Education is the most powerful weapon which you can use to change the world."</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Academic Pathways (Cards) -->
                         <div id="academics" class="bg-slate-50 py-24 px-6">
                             <div class="max-w-7xl mx-auto">
                                 <div class="text-center mb-16">
@@ -533,72 +462,47 @@ let firebaseConfig = {
                                     <h2 class="text-4xl md:text-5xl font-bold text-slate-900 mb-6 font-serif">Academic Pathways</h2>
                                     <div class="w-24 h-1 bg-gradient-to-r from-blue-500 to-emerald-500 mx-auto rounded-full"></div>
                                 </div>
-
                                 <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-                                    <!-- Card 1 -->
                                     <div class="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all group">
                                         <div class="h-48 overflow-hidden relative">
-                                            <img src="https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?q=80&w=2000&auto=format&fit=crop" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" onerror="this.src='https://placehold.co/600x400?text=Kindergarten'">
+                                            <img src="https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?q=80&w=2000&auto=format&fit=crop" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700">
                                             <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
                                             <div class="absolute bottom-4 left-4 text-white">
-                                                <span class="bg-yellow-400 text-yellow-900 text-xs font-bold px-2 py-1 rounded mb-2 inline-block">Ages 3-5</span>
                                                 <h3 class="text-xl font-bold">Kindergarten</h3>
                                             </div>
                                         </div>
                                         <div class="p-8">
-                                            <p class="text-slate-600 mb-6 line-clamp-3">A nurturing environment focusing on play-based learning, social skills, and early literacy in Lao and English.</p>
-                                            <button onclick="neeradaApp.navigate('public-teachers', {step: 'dept', campus: 'Chommany', dept: 'Kindergarten'})" class="text-emerald-600 font-bold hover:text-emerald-700 flex items-center gap-2 group-hover:gap-3 transition-all">
-                                                Meet the Teachers <i class="ph ph-arrow-right"></i>
-                                            </button>
+                                            <p class="text-slate-600 mb-6 line-clamp-3">A nurturing environment focusing on play-based learning.</p>
+                                            <button onclick="neeradaApp.navigate('public-teachers', {step: 'dept', campus: 'Chommany', dept: 'Kindergarten'})" class="text-emerald-600 font-bold hover:text-emerald-700 flex items-center gap-2">Meet the Teachers <i class="ph ph-arrow-right"></i></button>
                                         </div>
                                     </div>
-
-                                    <!-- Card 2 -->
                                     <div class="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all group">
                                         <div class="h-48 overflow-hidden relative">
-                                            <img src="https://images.unsplash.com/photo-1588072432836-e10032774350?q=80&w=2000&auto=format&fit=crop" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" onerror="this.src='https://placehold.co/600x400?text=Primary'">
+                                            <img src="https://images.unsplash.com/photo-1588072432836-e10032774350?q=80&w=2000&auto=format&fit=crop" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700">
                                             <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
                                             <div class="absolute bottom-4 left-4 text-white">
-                                                <span class="bg-blue-400 text-blue-900 text-xs font-bold px-2 py-1 rounded mb-2 inline-block">Ages 6-10</span>
                                                 <h3 class="text-xl font-bold">Primary School</h3>
                                             </div>
                                         </div>
                                         <div class="p-8">
-                                            <p class="text-slate-600 mb-6 line-clamp-3">Building strong foundations in mathematics, sciences, and languages with a focus on curiosity and discipline.</p>
-                                            <button onclick="neeradaApp.navigate('public-teachers', {step: 'dept', campus: 'Sibounheuang', dept: 'Primary'})" class="text-blue-600 font-bold hover:text-blue-700 flex items-center gap-2 group-hover:gap-3 transition-all">
-                                                Meet the Teachers <i class="ph ph-arrow-right"></i>
-                                            </button>
+                                            <p class="text-slate-600 mb-6 line-clamp-3">Building strong foundations in core subjects.</p>
+                                            <button onclick="neeradaApp.navigate('public-teachers', {step: 'dept', campus: 'Sibounheuang', dept: 'Primary'})" class="text-blue-600 font-bold hover:text-blue-700 flex items-center gap-2">Meet the Teachers <i class="ph ph-arrow-right"></i></button>
                                         </div>
                                     </div>
-
-                                    <!-- Card 3 -->
                                     <div class="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all group">
                                         <div class="h-48 overflow-hidden relative">
-                                            <img src="https://images.unsplash.com/photo-1523240795612-9a054b0db644?q=80&w=2000&auto=format&fit=crop" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" onerror="this.src='https://placehold.co/600x400?text=Secondary'">
+                                            <img src="https://images.unsplash.com/photo-1523240795612-9a054b0db644?q=80&w=2000&auto=format&fit=crop" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700">
                                             <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
                                             <div class="absolute bottom-4 left-4 text-white">
-                                                <span class="bg-emerald-400 text-emerald-900 text-xs font-bold px-2 py-1 rounded mb-2 inline-block">Ages 11-17</span>
                                                 <h3 class="text-xl font-bold">Secondary School</h3>
                                             </div>
                                         </div>
                                         <div class="p-8">
-                                            <p class="text-slate-600 mb-6 line-clamp-3">Preparing students for higher education with advanced curriculum, laboratory work, and leadership opportunities.</p>
-                                            <button onclick="neeradaApp.navigate('public-teachers', {step: 'dept', campus: 'Sibounheuang', dept: 'Secondary'})" class="text-emerald-600 font-bold hover:text-emerald-700 flex items-center gap-2 group-hover:gap-3 transition-all">
-                                                Meet the Teachers <i class="ph ph-arrow-right"></i>
-                                            </button>
+                                            <p class="text-slate-600 mb-6 line-clamp-3">Preparing students for higher education and beyond.</p>
+                                            <button onclick="neeradaApp.navigate('public-teachers', {step: 'dept', campus: 'Sibounheuang', dept: 'Secondary'})" class="text-emerald-600 font-bold hover:text-emerald-700 flex items-center gap-2">Meet the Teachers <i class="ph ph-arrow-right"></i></button>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
-
-                        <!-- Footer CTA -->
-                        <div class="bg-white py-20 px-6 text-center">
-                            <div class="max-w-3xl mx-auto">
-                                <h2 class="text-3xl font-bold text-slate-900 mb-6 font-serif">Visit Us Today</h2>
-                                <p class="text-slate-600 mb-8">
-                                    Experience the Neerada difference. Our administration team is ready to welcome you to our Sibounheuang and Chommany campuses.
-                                </p>
                             </div>
                         </div>
                     </div>
@@ -608,7 +512,6 @@ let firebaseConfig = {
             renderPublicAdmin(members) {
                 this.setupPublicView();
                 const canEdit = neeradaApp.isLoggedIn;
-                
                 let cards = members.map(m => `
                     <div class="bg-white rounded-2xl shadow-xl overflow-hidden group hover:shadow-2xl transition-all border border-slate-100 flex flex-col items-center p-8 text-center relative">
                         ${canEdit ? `
@@ -624,21 +527,10 @@ let firebaseConfig = {
                         </div>
                         <h3 class="font-serif font-bold text-2xl text-slate-900 mb-1">${m.name}</h3>
                         <div class="inline-block px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs font-bold tracking-wider uppercase mb-4">${m.role}</div>
-                        
-                        <div class="w-full space-y-2 border-t border-slate-100 pt-4 mt-auto">
-                            ${m.contact ? `
-                                <div class="flex items-center justify-center gap-2 text-slate-600 text-sm">
-                                    <i class="ph ph-address-book text-emerald-500 text-lg"></i>
-                                    <span>${m.contact}</span>
-                                </div>
-                            ` : '<span class="text-slate-400 italic text-sm">Contact info unavailable</span>'}
-                        </div>
                     </div>
                 `).join('');
 
-                if(members.length === 0) {
-                    cards = `<div class="col-span-full text-center text-slate-400 py-20 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">Organization chart is being updated.</div>`;
-                }
+                if(members.length === 0) cards = `<div class="col-span-full text-center text-slate-400 py-20 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">Organization chart is being updated.</div>`;
 
                 this.contentArea.innerHTML = `
                     <div class="min-h-full flex flex-col bg-slate-50 fade-in font-sans">
@@ -647,12 +539,9 @@ let firebaseConfig = {
                             <div class="text-center mb-16">
                                 <h2 class="text-4xl md:text-5xl font-bold text-slate-900 mb-4 font-serif">Administration</h2>
                                 <div class="w-24 h-1.5 bg-gradient-to-r from-blue-500 to-emerald-500 mx-auto rounded-full mb-6"></div>
-                                <p class="text-slate-600 text-lg max-w-2xl mx-auto">Meet the visionary leaders guiding Neerada School towards excellence.</p>
                                 ${canEdit ? `<button onclick="neeradaApp.openAddModal('org_members')" class="mt-8 bg-emerald-600 text-white px-8 py-3 rounded-full text-sm font-bold shadow-lg hover:bg-emerald-700 transition-all flex items-center gap-2 mx-auto"><i class="ph ph-plus text-lg"></i> Add Administrator</button>` : ''}
                             </div>
-                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
-                                ${cards}
-                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">${cards}</div>
                         </div>
                     </div>
                 `;
@@ -661,219 +550,95 @@ let firebaseConfig = {
             renderPublicTeachers(viewState = { step: 'campus', campus: null, dept: null }, teachers = []) {
                 this.setupPublicView();
                 let content = '';
-                
-                // STEP 1: Select Campus (Now with Big Pictures)
                 if (viewState.step === 'campus') {
                     content = `
-                        <div class="text-center mb-16">
-                            <h2 class="text-4xl md:text-5xl font-bold text-slate-900 font-serif mb-4">Our Faculty</h2>
-                            <p class="text-slate-500 text-lg">Select a campus to explore our teaching staff.</p>
-                        </div>
+                        <div class="text-center mb-16"><h2 class="text-4xl md:text-5xl font-bold text-slate-900 font-serif mb-4">Our Faculty</h2></div>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-10 max-w-5xl mx-auto">
-                            <!-- Sibounheuang Campus Card -->
                             <div onclick="neeradaApp.navigate('public-teachers', { step: 'dept', campus: 'Sibounheuang' })" class="bg-white rounded-3xl shadow-xl hover:shadow-2xl transition-all cursor-pointer group overflow-hidden relative h-80">
-                                <img src="https://images.unsplash.com/photo-1562774053-701939374585?q=80&w=1000&auto=format&fit=crop" class="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt="Sibounheuang Campus">
+                                <img src="https://images.unsplash.com/photo-1562774053-701939374585?q=80&w=1000&auto=format&fit=crop" class="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700">
                                 <div class="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/40 to-transparent"></div>
-                                <div class="absolute bottom-0 left-0 p-8 text-white">
-                                    <h3 class="text-3xl font-bold font-serif mb-2 group-hover:text-blue-300 transition-colors">Sibounheuang Campus</h3>
-                                    <p class="text-slate-200 flex items-center gap-2 font-medium">Primary & Secondary <i class="ph ph-arrow-right"></i></p>
-                                </div>
+                                <div class="absolute bottom-0 left-0 p-8 text-white"><h3 class="text-3xl font-bold font-serif mb-2">Sibounheuang Campus</h3></div>
                             </div>
-                            <!-- Chommany Campus Card -->
                             <div onclick="neeradaApp.navigate('public-teachers', { step: 'dept', campus: 'Chommany' })" class="bg-white rounded-3xl shadow-xl hover:shadow-2xl transition-all cursor-pointer group overflow-hidden relative h-80">
-                                <img src="https://images.unsplash.com/photo-1503676260728-1c00da094a0b?q=80&w=1000&auto=format&fit=crop" class="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt="Chommany Campus">
+                                <img src="https://images.unsplash.com/photo-1503676260728-1c00da094a0b?q=80&w=1000&auto=format&fit=crop" class="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700">
                                 <div class="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/40 to-transparent"></div>
-                                <div class="absolute bottom-0 left-0 p-8 text-white">
-                                    <h3 class="text-3xl font-bold font-serif mb-2 group-hover:text-emerald-300 transition-colors">Chommany Campus</h3>
-                                    <p class="text-slate-200 flex items-center gap-2 font-medium">Kindergarten <i class="ph ph-arrow-right"></i></p>
-                                </div>
+                                <div class="absolute bottom-0 left-0 p-8 text-white"><h3 class="text-3xl font-bold font-serif mb-2">Chommany Campus</h3></div>
                             </div>
                         </div>
                     `;
-                } 
-                // STEP 2: Select Department
-                else if (viewState.step === 'dept') {
-                    const depts = [
-                        { name: 'Kindergarten', img: 'https://images.unsplash.com/photo-1587654780291-39c9404d746b?q=80&w=600&auto=format&fit=crop' },
-                        { name: 'Primary', img: 'https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=600&auto=format&fit=crop' },
-                        { name: 'Secondary', img: 'https://images.unsplash.com/photo-1427504746696-ea5abd7dfe5b?q=80&w=600&auto=format&fit=crop' },
-                        { name: 'English', img: 'https://images.unsplash.com/photo-1543269865-cbf427effbad?q=80&w=600&auto=format&fit=crop' }
-                    ];
-                    
-                    const cards = depts.map(d => `
-                         <div onclick="neeradaApp.navigate('public-teachers', { step: 'list', campus: '${viewState.campus}', dept: '${d.name}' })" class="bg-white rounded-2xl shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all cursor-pointer overflow-hidden group h-64 relative">
-                            <img src="${d.img}" class="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700">
-                            <div class="absolute inset-0 bg-slate-900/50 group-hover:bg-slate-900/40 transition-colors"></div>
-                            <div class="absolute inset-0 flex flex-col items-center justify-center text-white p-4 text-center">
-                                <h3 class="text-2xl font-bold font-serif mb-2">${d.name}</h3>
-                                <span class="text-xs font-bold uppercase tracking-widest border border-white/50 px-3 py-1 rounded-full group-hover:bg-white group-hover:text-slate-900 transition-all">View Faculty</span>
-                            </div>
-                        </div>
-                    `).join('');
-
-                    content = `
-                        <div class="max-w-7xl mx-auto">
-                            <button onclick="neeradaApp.navigate('public-teachers')" class="mb-8 text-slate-500 hover:text-slate-900 flex items-center gap-2 font-medium transition-colors"><div class="p-2 bg-white rounded-full shadow-sm"><i class="ph ph-arrow-left"></i></div> Back to Campuses</button>
-                            <div class="text-center mb-16">
-                                <span class="text-emerald-600 font-bold tracking-widest uppercase text-sm mb-3 block">${viewState.campus} Campus</span>
-                                <h2 class="text-4xl font-bold text-slate-900 font-serif">Select Department</h2>
-                            </div>
-                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                                ${cards}
-                            </div>
-                        </div>
-                    `;
-                }
-                // STEP 3: List Teachers (LARGE 3x4 CARDS)
-                else if (viewState.step === 'list') {
+                } else if (viewState.step === 'dept') {
+                    const depts = [{ name: 'Kindergarten', img: 'https://images.unsplash.com/photo-1587654780291-39c9404d746b?q=80&w=600&auto=format&fit=crop' }, { name: 'Primary', img: 'https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=600&auto=format&fit=crop' }, { name: 'Secondary', img: 'https://images.unsplash.com/photo-1427504746696-ea5abd7dfe5b?q=80&w=600&auto=format&fit=crop' }, { name: 'English', img: 'https://images.unsplash.com/photo-1543269865-cbf427effbad?q=80&w=600&auto=format&fit=crop' }];
+                    const cards = depts.map(d => `<div onclick="neeradaApp.navigate('public-teachers', { step: 'list', campus: '${viewState.campus}', dept: '${d.name}' })" class="bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all cursor-pointer overflow-hidden group h-64 relative"><img src="${d.img}" class="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"><div class="absolute inset-0 bg-slate-900/50"></div><div class="absolute inset-0 flex flex-col items-center justify-center text-white"><h3 class="text-2xl font-bold font-serif mb-2">${d.name}</h3></div></div>`).join('');
+                    content = `<div class="max-w-7xl mx-auto"><button onclick="neeradaApp.navigate('public-teachers')" class="mb-8 text-slate-500 hover:text-slate-900 flex items-center gap-2 font-medium transition-colors"><i class="ph ph-arrow-left"></i> Back</button><div class="text-center mb-16"><h2 class="text-4xl font-bold text-slate-900 font-serif">Select Department</h2></div><div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">${cards}</div></div>`;
+                } else if (viewState.step === 'list') {
                     const filtered = teachers.filter(t => t.campus === viewState.campus && t.department === viewState.dept);
-                    let listHtml = '';
-                    if (filtered.length === 0) {
-                        listHtml = `<div class="col-span-full text-center py-20 text-slate-400 bg-white rounded-3xl border-2 border-dashed border-slate-200">No teachers found for this section yet.</div>`;
-                    } else {
-                        listHtml = filtered.map(t => `
-                            <div onclick="neeradaApp.showTeacherDetails('${t.id}')" class="bg-white rounded-2xl shadow-xl overflow-hidden group hover:shadow-2xl transition-all border border-slate-100 flex flex-col items-center p-6 text-center relative cursor-pointer transform hover:-translate-y-1">
-                                <div class="w-64 h-[320px] mb-6 relative rounded-xl overflow-hidden shadow-md bg-slate-50">
-                                    ${t.image ? `<img src="${t.image}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">` : `<div class="w-full h-full flex flex-col items-center justify-center text-slate-400 bg-slate-50"><i class="ph ph-chalkboard-teacher text-6xl mb-2"></i><span class="text-sm">No Photo</span></div>`}
-                                </div>
-                                <h3 class="font-serif font-bold text-2xl text-slate-900 mb-1">${t.name}</h3>
-                                <div class="inline-block px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs font-bold tracking-wider uppercase mb-4">View Details</div>
-                                
-                                <div class="w-full space-y-3 border-t border-slate-100 pt-4 mt-auto text-left">
-                                    <div class="flex items-center gap-3 text-slate-600 text-sm justify-center">
-                                        <i class="ph ph-chalkboard text-emerald-500 text-lg"></i>
-                                        <span class="font-medium">${t.grade_level || 'Grade N/A'} - ${t.section || 'Sec N/A'}</span>
-                                    </div>
-                                    <div class="flex items-center gap-3 text-slate-600 text-sm justify-center">
-                                        <i class="ph ph-phone text-purple-500 text-lg"></i>
-                                        <span class="font-medium">${t.phone}</span>
-                                    </div>
-                                    <div class="flex items-center gap-3 text-slate-600 text-sm justify-center">
-                                        <i class="ph ph-envelope text-orange-500 text-lg"></i>
-                                        <span class="font-medium truncate max-w-[180px]">${t.email}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        `).join('');
-                    }
-
-                    content = `
-                        <div class="max-w-7xl mx-auto">
-                            <button onclick="neeradaApp.navigate('public-teachers', { step: 'dept', campus: '${viewState.campus}' })" class="mb-8 text-slate-500 hover:text-slate-900 flex items-center gap-2 font-medium transition-colors"><div class="p-2 bg-white rounded-full shadow-sm"><i class="ph ph-arrow-left"></i></div> Back to Departments</button>
-                            <div class="text-center mb-16">
-                                <span class="text-emerald-600 font-bold tracking-widest uppercase text-sm mb-3 block">${viewState.campus} Campus</span>
-                                <h2 class="text-4xl md:text-5xl font-bold text-slate-900 font-serif">${viewState.dept} Teachers</h2>
-                                <div class="w-24 h-1.5 bg-gradient-to-r from-blue-500 to-emerald-500 mx-auto rounded-full mt-6"></div>
-                            </div>
-                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10 justify-items-center">
-                                ${listHtml}
-                            </div>
-                        </div>
-                    `;
+                    let listHtml = filtered.length === 0 ? `<div class="col-span-full text-center py-20 text-slate-400">No teachers found.</div>` : filtered.map(t => `<div onclick="neeradaApp.showTeacherDetails('${t.id}')" class="bg-white rounded-2xl shadow-xl overflow-hidden cursor-pointer p-6 text-center transform hover:-translate-y-1"><div class="w-64 h-[320px] mb-6 relative rounded-xl overflow-hidden bg-slate-50 mx-auto">${t.image ? `<img src="${t.image}" class="w-full h-full object-cover">` : `<div class="w-full h-full flex flex-col items-center justify-center text-slate-400"><i class="ph ph-chalkboard-teacher text-6xl"></i></div>`}</div><h3 class="font-serif font-bold text-2xl text-slate-900">${t.name}</h3></div>`).join('');
+                    content = `<div class="max-w-7xl mx-auto"><button onclick="neeradaApp.navigate('public-teachers', { step: 'dept', campus: '${viewState.campus}' })" class="mb-8 text-slate-500 hover:text-slate-900 flex items-center gap-2 font-medium"><i class="ph ph-arrow-left"></i> Back</button><div class="text-center mb-16"><h2 class="text-4xl md:text-5xl font-bold text-slate-900 font-serif">${viewState.dept} Teachers</h2></div><div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10 justify-items-center">${listHtml}</div></div>`;
                 }
-
-                this.contentArea.innerHTML = `
-                    <div class="min-h-full flex flex-col bg-slate-50 fade-in font-sans">
-                        ${this.renderPublicNavbar()}
-                        <div class="pt-32 pb-20 px-6 w-full">
-                            ${content}
-                        </div>
-                    </div>
-                `;
+                this.contentArea.innerHTML = `<div class="min-h-full flex flex-col bg-slate-50 fade-in font-sans">${this.renderPublicNavbar()}<div class="pt-32 pb-20 px-6 w-full">${content}</div></div>`;
             }
 
             async renderPublicStaff() {
                 this.setupPublicView();
                 const canEdit = neeradaApp.isLoggedIn;
                 const members = await neeradaApp.db.getAll('staff');
-                
-                let cards = members.map(m => `
-                    <div class="bg-white rounded-2xl shadow-xl overflow-hidden group hover:shadow-2xl transition-all border border-slate-100 flex flex-col items-center p-8 text-center relative">
-                        ${canEdit ? `
-                            <div class="absolute top-4 right-4 flex gap-2 z-10 bg-white/80 backdrop-blur rounded-full p-1 shadow-sm">
-                                <button onclick="neeradaApp.openEditModal('staff', '${m.id}')" class="text-blue-600 hover:text-blue-800 p-2 rounded-full hover:bg-blue-50"><i class="ph ph-pencil-simple text-lg"></i></button>
-                                <button onclick="neeradaApp.deleteItem('staff', '${m.id}')" class="text-red-500 hover:text-red-700 p-2 rounded-full hover:bg-red-50"><i class="ph ph-trash text-lg"></i></button>
-                            </div>
-                        ` : ''}
-                        <div class="w-64 h-64 mb-6 relative">
-                            <div class="w-full h-full rounded-2xl overflow-hidden border-4 border-white shadow-lg bg-slate-100">
-                                ${m.image ? `<img src="${m.image}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">` : `<div class="w-full h-full flex flex-col items-center justify-center text-slate-400 bg-slate-50"><i class="ph ph-user text-6xl mb-2"></i><span class="text-sm">No Photo</span></div>`}
-                            </div>
-                        </div>
-                        <h3 class="font-serif font-bold text-2xl text-slate-900 mb-1">${m.name}</h3>
-                        <div class="inline-block px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full text-xs font-bold tracking-wider uppercase mb-4">${m.role}</div>
-                        
-                        <div class="w-full space-y-2 border-t border-slate-100 pt-4 mt-auto">
-                            ${m.contact ? `
-                                <div class="flex items-center justify-center gap-2 text-slate-600 text-sm">
-                                    <i class="ph ph-address-book text-indigo-500 text-lg"></i>
-                                    <span>${m.contact}</span>
-                                </div>
-                            ` : '<span class="text-slate-400 italic text-sm">Contact info unavailable</span>'}
-                        </div>
-                    </div>
-                `).join('');
-
-                if(members.length === 0) {
-                    cards = `<div class="col-span-full text-center text-slate-400 py-20 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">Staff directory is being updated.</div>`;
-                }
-
-                this.contentArea.innerHTML = `
-                    <div class="min-h-full flex flex-col bg-slate-50 fade-in font-sans">
-                        ${this.renderPublicNavbar()}
-                        <div class="pt-32 pb-20 px-6 max-w-7xl mx-auto w-full">
-                            <div class="text-center mb-16">
-                                <h2 class="text-4xl md:text-5xl font-bold text-slate-900 mb-4 font-serif">Support Staff</h2>
-                                <div class="w-24 h-1.5 bg-gradient-to-r from-blue-500 to-indigo-500 mx-auto rounded-full mb-6"></div>
-                                <p class="text-slate-600 text-lg max-w-2xl mx-auto">The dedicated team ensuring a safe and productive environment for all.</p>
-                                ${canEdit ? `<button onclick="neeradaApp.openAddModal('staff')" class="mt-8 bg-blue-600 text-white px-8 py-3 rounded-full text-sm font-bold shadow-lg hover:bg-blue-700 transition-all flex items-center gap-2 mx-auto"><i class="ph ph-plus text-lg"></i> Add Staff Member</button>` : ''}
-                            </div>
-                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
-                                ${cards}
-                            </div>
-                        </div>
-                    </div>
-                `;
+                let cards = members.map(m => `<div class="bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-100 flex flex-col items-center p-8 text-center relative">${canEdit ? `<div class="absolute top-4 right-4 flex gap-2 z-10 bg-white/80 p-1 rounded-full"><button onclick="neeradaApp.openEditModal('staff', '${m.id}')" class="text-blue-600 p-2"><i class="ph ph-pencil-simple"></i></button><button onclick="neeradaApp.deleteItem('staff', '${m.id}')" class="text-red-500 p-2"><i class="ph ph-trash"></i></button></div>` : ''}<div class="w-64 h-64 mb-6 relative"><div class="w-full h-full rounded-2xl overflow-hidden bg-slate-100">${m.image ? `<img src="${m.image}" class="w-full h-full object-cover">` : `<div class="w-full h-full flex flex-col items-center justify-center text-slate-400"><i class="ph ph-user text-6xl"></i></div>`}</div></div><h3 class="font-serif font-bold text-2xl text-slate-900">${m.name}</h3><div class="inline-block px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full text-xs font-bold uppercase mb-4">${m.role}</div></div>`).join('');
+                if(members.length === 0) cards = `<div class="col-span-full text-center text-slate-400 py-20">Staff directory is being updated.</div>`;
+                this.contentArea.innerHTML = `<div class="min-h-full flex flex-col bg-slate-50 fade-in font-sans">${this.renderPublicNavbar()}<div class="pt-32 pb-20 px-6 max-w-7xl mx-auto w-full"><div class="text-center mb-16"><h2 class="text-4xl md:text-5xl font-bold text-slate-900 mb-4 font-serif">Support Staff</h2>${canEdit ? `<button onclick="neeradaApp.openAddModal('staff')" class="mt-8 bg-blue-600 text-white px-8 py-3 rounded-full text-sm font-bold shadow-lg hover:bg-blue-700 transition-all flex items-center gap-2 mx-auto"><i class="ph ph-plus text-lg"></i> Add Staff Member</button>` : ''}</div><div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">${cards}</div></div></div>`;
             }
 
             async renderPublicStudents() {
                 this.setupPublicView();
-                // Fetch students
                 const students = await neeradaApp.db.getAll('students');
                 
-                // Group by Grade for cleaner display
-                const grouped = {};
+                // --- NEW HIERARCHY: Campus -> Dept -> Year ---
+                const hierarchy = {};
                 students.forEach(s => {
-                    const g = s.grade || 'Unassigned';
-                    if(!grouped[g]) grouped[g] = [];
-                    grouped[g].push(s);
+                    const c = s.campus || 'Unassigned';
+                    const d = s.department || 'General';
+                    const y = s.school_year || 'Current';
+                    
+                    if (!hierarchy[c]) hierarchy[c] = {};
+                    if (!hierarchy[c][d]) hierarchy[c][d] = {};
+                    if (!hierarchy[c][d][y]) hierarchy[c][d][y] = [];
+                    hierarchy[c][d][y].push(s);
                 });
 
-                // Sort grades
-                const grades = Object.keys(grouped).sort();
+                let content = '';
+                const campuses = Object.keys(hierarchy).sort();
 
-                let gridContent = '';
-                if(grades.length === 0) {
-                    gridContent = `<div class="col-span-full text-center py-20 text-slate-400 bg-white rounded-3xl border-2 border-dashed border-slate-200">No student records found.</div>`;
+                if (campuses.length === 0) {
+                    content = `<div class="text-center py-20 text-slate-400 bg-white rounded-3xl border-2 border-dashed border-slate-200">No student records found.</div>`;
                 } else {
-                    gridContent = grades.map(grade => `
-                        <div class="bg-white p-8 rounded-2xl shadow-lg mb-8">
-                            <h3 class="text-2xl font-serif font-bold text-slate-800 mb-6 border-b pb-2 border-slate-100 flex items-center gap-3">
-                                <i class="ph ph-student text-blue-500"></i> ${grade}
-                            </h3>
-                            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                                ${grouped[grade].map(s => `
-                                    <div class="flex items-center p-3 bg-slate-50 rounded-xl border border-slate-100 hover:border-blue-200 transition-colors">
-                                        <div class="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm mr-3 shrink-0">
-                                            ${s.name.charAt(0)}
+                    content = campuses.map(campus => `
+                        <div class="mb-12">
+                            <h2 class="text-3xl font-bold text-slate-800 border-b-2 border-blue-500 inline-block mb-8 pb-2">${campus} Campus</h2>
+                            ${Object.keys(hierarchy[campus]).sort().map(dept => `
+                                <div class="mb-8 ml-4">
+                                    <h3 class="text-xl font-bold text-emerald-600 mb-4 flex items-center gap-2"><i class="ph ph-buildings"></i> ${dept}</h3>
+                                    ${Object.keys(hierarchy[campus][dept]).sort().reverse().map(year => `
+                                        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 mb-4 overflow-hidden">
+                                            <div class="bg-slate-50 px-6 py-3 border-b border-slate-100 flex justify-between items-center cursor-pointer" onclick="this.nextElementSibling.classList.toggle('hidden')">
+                                                <h4 class="font-bold text-slate-700">School Year: ${year}</h4>
+                                                <span class="bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded-full font-bold">${hierarchy[campus][dept][year].length} Students</span>
+                                            </div>
+                                            <div class="p-6 hidden"> <!-- Hidden by default for cleaner look, toggle to see -->
+                                                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                                                    ${hierarchy[campus][dept][year].map(s => `
+                                                        <div class="flex items-center p-3 bg-white border border-slate-100 rounded-lg hover:shadow-md transition-shadow">
+                                                            <div class="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-sm mr-3 shrink-0">${s.name.charAt(0)}</div>
+                                                            <div>
+                                                                <p class="font-medium text-slate-800 text-sm truncate w-32">${s.name}</p>
+                                                                <p class="text-xs text-slate-400">${s.grade}</p>
+                                                            </div>
+                                                        </div>
+                                                    `).join('')}
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div class="truncate">
-                                            <p class="font-medium text-slate-800 truncate">${s.name}</p>
-                                            <!-- Optional: Hide sensitive info publically -->
-                                        </div>
-                                    </div>
-                                `).join('')}
-                            </div>
+                                    `).join('')}
+                                </div>
+                            `).join('')}
                         </div>
                     `).join('');
                 }
@@ -884,95 +649,33 @@ let firebaseConfig = {
                         <div class="pt-32 pb-20 px-6 max-w-7xl mx-auto w-full">
                             <div class="text-center mb-16">
                                 <h2 class="text-4xl md:text-5xl font-bold text-slate-900 mb-4 font-serif">Our Students</h2>
-                                <div class="w-24 h-1.5 bg-gradient-to-r from-blue-500 to-indigo-500 mx-auto rounded-full mb-6"></div>
-                                <p class="text-slate-600 text-lg max-w-2xl mx-auto">The bright minds shaping the future of our community.</p>
+                                <p class="text-slate-600">Click on a School Year to view the student list.</p>
                             </div>
-                            <div class="max-w-6xl mx-auto">
-                                ${gridContent}
+                            <div class="max-w-5xl mx-auto">
+                                ${content}
                             </div>
                         </div>
                     </div>
                 `;
             }
 
-            // --- SETTINGS RENDERER ---
             renderSettings(currentSettings) {
                 this.sidebar.classList.remove('hidden');
                 this.sidebar.classList.add('md:flex');
                 this.mainHeader.style.display = 'flex';
                 this.contentArea.classList.add('p-4', 'md:p-8');
                 this.pageTitle.textContent = "Settings";
-
                 const logoSrc = currentSettings.logo || '';
-
-                this.contentArea.innerHTML = `
-                    <div class="max-w-2xl mx-auto bg-white p-8 rounded-xl shadow-sm border border-slate-200 fade-in">
-                        <h3 class="text-xl font-bold text-slate-800 mb-6 pb-4 border-b border-slate-100">School Configuration</h3>
-                        
-                        <form onsubmit="neeradaApp.saveSettings(event)" class="space-y-6">
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-2">School Logo</label>
-                                <div class="flex items-center gap-6">
-                                    <div class="w-24 h-24 rounded-xl bg-slate-100 border-2 border-dashed border-slate-300 flex items-center justify-center overflow-hidden relative">
-                                        ${logoSrc ? `<img src="${logoSrc}" id="settings-logo-preview" class="w-full h-full object-cover">` : `<i class="ph ph-image text-3xl text-slate-400" id="settings-logo-icon"></i>`}
-                                    </div>
-                                    <div class="flex-1">
-                                        <input type="file" id="settings-logo-input" accept="image/*" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition-colors" onchange="neeradaApp.previewSettingsLogo(this)">
-                                        <p class="mt-2 text-xs text-slate-500">Upload a square image (PNG/JPG). Max 1MB.</p>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="pt-6 border-t border-slate-100 flex justify-end">
-                                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium shadow-md transition-all active:scale-95 flex items-center gap-2">
-                                    <i class="ph ph-floppy-disk text-lg"></i> Save Changes
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                `;
+                this.contentArea.innerHTML = `<div class="max-w-2xl mx-auto bg-white p-8 rounded-xl shadow-sm border border-slate-200 fade-in"><h3 class="text-xl font-bold text-slate-800 mb-6 pb-4 border-b border-slate-100">School Configuration</h3><form onsubmit="neeradaApp.saveSettings(event)" class="space-y-6"><div><label class="block text-sm font-medium text-slate-700 mb-2">School Logo</label><div class="flex items-center gap-6"><div class="w-24 h-24 rounded-xl bg-slate-100 border-2 border-dashed border-slate-300 flex items-center justify-center overflow-hidden relative">${logoSrc ? `<img src="${logoSrc}" id="settings-logo-preview" class="w-full h-full object-cover">` : `<i class="ph ph-image text-3xl text-slate-400" id="settings-logo-icon"></i>`}</div><div class="flex-1"><input type="file" id="settings-logo-input" accept="image/*" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" onchange="neeradaApp.previewSettingsLogo(this)"><p class="mt-2 text-xs text-slate-500">Upload a square image (PNG/JPG). Max 1MB.</p></div></div></div><div class="pt-6 border-t border-slate-100 flex justify-end"><button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium shadow-md flex items-center gap-2"><i class="ph ph-floppy-disk text-lg"></i> Save Changes</button></div></form></div>`;
             }
 
-            // --- DASHBOARD METHODS ---
-
             renderDashboard(stats) {
-                this.sidebar.classList.add('hidden'); // Ensure hidden on mobile default
-                this.sidebar.classList.add('md:flex'); // Ensure visible on desktop
+                this.sidebar.classList.add('hidden');
+                this.sidebar.classList.add('md:flex');
                 this.mainHeader.style.display = 'flex';
                 this.contentArea.classList.add('p-4', 'md:p-8');
-                
                 this.pageTitle.textContent = "Dashboard";
-                this.contentArea.innerHTML = `
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 fade-in">
-                        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between">
-                            <div><p class="text-slate-500 text-sm font-medium">Students</p><h3 class="text-3xl font-bold text-slate-800 mt-1">${stats.students}</h3></div>
-                            <div class="w-12 h-12 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center"><i class="ph ph-student text-2xl"></i></div>
-                        </div>
-                        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between">
-                            <div><p class="text-slate-500 text-sm font-medium">Teachers</p><h3 class="text-3xl font-bold text-slate-800 mt-1">${stats.teachers}</h3></div>
-                            <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-lg flex items-center justify-center"><i class="ph ph-chalkboard-teacher text-2xl"></i></div>
-                        </div>
-                        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between">
-                            <div><p class="text-slate-500 text-sm font-medium">Staff</p><h3 class="text-3xl font-bold text-slate-800 mt-1">${stats.staff}</h3></div>
-                            <div class="w-12 h-12 bg-orange-100 text-orange-600 rounded-lg flex items-center justify-center"><i class="ph ph-users text-2xl"></i></div>
-                        </div>
-                        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between">
-                            <div><p class="text-slate-500 text-sm font-medium">Classes</p><h3 class="text-3xl font-bold text-slate-800 mt-1">${stats.classes}</h3></div>
-                            <div class="w-12 h-12 bg-purple-100 text-purple-600 rounded-lg flex items-center justify-center"><i class="ph ph-books text-2xl"></i></div>
-                        </div>
-                    </div>
-                    <div class="mt-8 bg-gradient-to-br from-slate-800 to-slate-900 text-white p-8 rounded-xl shadow-lg relative overflow-hidden">
-                         <div class="relative z-10">
-                            <h3 class="text-2xl font-bold mb-2">Welcome Back!</h3>
-                            <p class="text-slate-300 mb-6">Manage data or update the public website content from here.</p>
-                            <div class="flex gap-3">
-                                <button onclick="neeradaApp.navigate('students')" class="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors">Manage Students</button>
-                                <button onclick="neeradaApp.navigate('administration')" class="bg-white/10 hover:bg-white/20 text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors">Manage Admin</button>
-                                <button onclick="neeradaApp.logout()" class="bg-red-500/20 hover:bg-red-500/40 text-red-100 px-5 py-2 rounded-lg text-sm font-medium transition-colors">Logout</button>
-                            </div>
-                         </div>
-                    </div>
-                `;
+                this.contentArea.innerHTML = `<div class="grid grid-cols-1 md:grid-cols-4 gap-6 fade-in"><div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between"><div><p class="text-slate-500 text-sm font-medium">Students</p><h3 class="text-3xl font-bold text-slate-800 mt-1">${stats.students}</h3></div><div class="w-12 h-12 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center"><i class="ph ph-student text-2xl"></i></div></div><div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between"><div><p class="text-slate-500 text-sm font-medium">Teachers</p><h3 class="text-3xl font-bold text-slate-800 mt-1">${stats.teachers}</h3></div><div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-lg flex items-center justify-center"><i class="ph ph-chalkboard-teacher text-2xl"></i></div></div><div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between"><div><p class="text-slate-500 text-sm font-medium">Staff</p><h3 class="text-3xl font-bold text-slate-800 mt-1">${stats.staff}</h3></div><div class="w-12 h-12 bg-orange-100 text-orange-600 rounded-lg flex items-center justify-center"><i class="ph ph-users text-2xl"></i></div></div><div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between"><div><p class="text-slate-500 text-sm font-medium">Classes</p><h3 class="text-3xl font-bold text-slate-800 mt-1">${stats.classes}</h3></div><div class="w-12 h-12 bg-purple-100 text-purple-600 rounded-lg flex items-center justify-center"><i class="ph ph-books text-2xl"></i></div></div></div><div class="mt-8 bg-gradient-to-br from-slate-800 to-slate-900 text-white p-8 rounded-xl shadow-lg relative overflow-hidden"><div class="relative z-10"><h3 class="text-2xl font-bold mb-2">Welcome Back!</h3><p class="text-slate-300 mb-6">Manage data or update the public website content from here.</p><div class="flex gap-3"><button onclick="neeradaApp.navigate('students')" class="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2 rounded-lg text-sm font-medium">Manage Students</button><button onclick="neeradaApp.navigate('administration')" class="bg-white/10 hover:bg-white/20 text-white px-5 py-2 rounded-lg text-sm font-medium">Manage Admin</button><button onclick="neeradaApp.logout()" class="bg-red-500/20 hover:bg-red-500/40 text-red-100 px-5 py-2 rounded-lg text-sm font-medium">Logout</button></div></div></div>`;
             }
 
             renderTable(title, columns, data, type) {
@@ -984,34 +687,9 @@ let firebaseConfig = {
                 
                 let rowsHtml = data.length === 0 ? 
                     `<tr><td colspan="${columns.length + 1}" class="text-center py-8 text-slate-400">No records.</td></tr>` : 
-                    data.map(item => `
-                        <tr class="hover:bg-slate-50 border-b border-slate-100 last:border-0 transition-colors">
-                            ${columns.map(col => {
-                                if (col.key === 'image') {
-                                    const imgSrc = item[col.key];
-                                    return `<td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
-                                        <div class="w-10 h-12 rounded-md bg-slate-100 overflow-hidden border border-slate-200">
-                                            ${imgSrc ? `<img src="${imgSrc}" class="w-full h-full object-cover">` : '<div class="w-full h-full flex items-center justify-center text-slate-400"><i class="ph ph-user text-xl"></i></div>'}
-                                        </div>
-                                    </td>`;
-                                }
-                                return `<td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">${item[col.key] || '-'}</td>`
-                            }).join('')}
-                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                <button onclick="neeradaApp.openEditModal('${type}', '${item.id}')" class="text-blue-600 hover:text-blue-900 mr-3"><i class="ph ph-pencil-simple"></i> Edit</button>
-                                <button onclick="neeradaApp.deleteItem('${type}', '${item.id}')" class="text-red-500 hover:text-red-700"><i class="ph ph-trash"></i> Delete</button>
-                            </td>
-                        </tr>`).join('');
+                    data.map(item => `<tr class="hover:bg-slate-50 border-b border-slate-100 last:border-0 transition-colors">${columns.map(col => { if (col.key === 'image') { const imgSrc = item[col.key]; return `<td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600"><div class="w-10 h-12 rounded-md bg-slate-100 overflow-hidden border border-slate-200">${imgSrc ? `<img src="${imgSrc}" class="w-full h-full object-cover">` : '<div class="w-full h-full flex items-center justify-center text-slate-400"><i class="ph ph-user text-xl"></i></div>'}</div></td>`; } return `<td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">${item[col.key] || '-'}</td>` }).join('')}<td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium"><button onclick="neeradaApp.openEditModal('${type}', '${item.id}')" class="text-blue-600 hover:text-blue-900 mr-3"><i class="ph ph-pencil-simple"></i> Edit</button><button onclick="neeradaApp.deleteItem('${type}', '${item.id}')" class="text-red-500 hover:text-red-700"><i class="ph ph-trash"></i> Delete</button></td></tr>`).join('');
 
-                this.contentArea.innerHTML = `
-                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col fade-in">
-                        <div class="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50 rounded-t-xl">
-                            <input type="text" placeholder="Search..." class="pl-4 pr-4 py-2 border border-slate-300 rounded-lg text-sm w-64" onkeyup="neeradaApp.filterTable(this.value)">
-                            <button onclick="neeradaApp.openAddModal('${type}')" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2"><i class="ph ph-plus-circle text-lg"></i> Add New</button>
-                        </div>
-                        <div class="overflow-x-auto"><table class="min-w-full"><thead class="bg-slate-50 border-b border-slate-200"><tr>${columns.map(c => `<th class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase">${c.label}</th>`).join('')}<th class="px-6 py-3 text-right text-xs font-semibold text-slate-500 uppercase">Actions</th></tr></thead><tbody class="bg-white divide-y divide-slate-100">${rowsHtml}</tbody></table></div>
-                    </div>
-                `;
+                this.contentArea.innerHTML = `<div class="bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col fade-in"><div class="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50 rounded-t-xl"><input type="text" placeholder="Search..." class="pl-4 pr-4 py-2 border border-slate-300 rounded-lg text-sm w-64" onkeyup="neeradaApp.filterTable(this.value)"><button onclick="neeradaApp.openAddModal('${type}')" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2"><i class="ph ph-plus-circle text-lg"></i> Add New</button></div><div class="overflow-x-auto"><table class="min-w-full"><thead class="bg-slate-50 border-b border-slate-200"><tr>${columns.map(c => `<th class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase">${c.label}</th>`).join('')}<th class="px-6 py-3 text-right text-xs font-semibold text-slate-500 uppercase">Actions</th></tr></thead><tbody class="bg-white divide-y divide-slate-100">${rowsHtml}</tbody></table></div></div>`;
             }
 
             openModal(title, fields, saveCallback) {
@@ -1019,115 +697,73 @@ let firebaseConfig = {
                 const form = $('#dynamic-form');
                 form.innerHTML = fields.map(field => {
                     if (field.type === 'hidden') return `<input type="hidden" name="${field.name}" value="${field.value || ''}">`;
-                    if (field.type === 'select') {
-                        return `<div>
-                            <label class="block text-sm font-medium text-slate-700 mb-1">${field.label}</label>
-                            <select name="${field.name}" class="w-full px-4 py-2 border border-slate-300 rounded-lg outline-none focus:border-blue-500">
-                                ${field.options.map(opt => `<option value="${opt}" ${field.value === opt ? 'selected' : ''}>${opt}</option>`).join('')}
-                            </select>
-                        </div>`;
-                    }
-                    if (field.type === 'file') {
-                        return `<div>
-                            <label class="block text-sm font-medium text-slate-700 mb-1">${field.label}</label>
-                            <input type="file" name="${field.name}" accept="image/*" class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
-                            ${field.value ? `<img src="${field.value}" class="image-preview">` : ''}
-                        </div>`;
-                    }
-                    return `<div>
-                        <label class="block text-sm font-medium text-slate-700 mb-1">${field.label}</label>
-                        <input type="${field.type}" name="${field.name}" value="${field.value || ''}" class="w-full px-4 py-2 border border-slate-300 rounded-lg outline-none focus:border-blue-500" ${field.required ? 'required' : ''}>
-                    </div>`;
+                    if (field.type === 'select') return `<div><label class="block text-sm font-medium text-slate-700 mb-1">${field.label}</label><select name="${field.name}" class="w-full px-4 py-2 border border-slate-300 rounded-lg outline-none focus:border-blue-500">${field.options.map(opt => `<option value="${opt}" ${field.value === opt ? 'selected' : ''}>${opt}</option>`).join('')}</select></div>`;
+                    if (field.type === 'file') return `<div><label class="block text-sm font-medium text-slate-700 mb-1">${field.label}</label><input type="file" name="${field.name}" accept="image/*" class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">${field.value ? `<img src="${field.value}" class="image-preview">` : ''}</div>`;
+                    return `<div><label class="block text-sm font-medium text-slate-700 mb-1">${field.label}</label><input type="${field.type}" name="${field.name}" value="${field.value || ''}" class="w-full px-4 py-2 border border-slate-300 rounded-lg outline-none focus:border-blue-500" ${field.required ? 'required' : ''}></div>`;
                 }).join('');
                 
                 $('#modal-save-btn').onclick = async (e) => {
                     e.preventDefault();
                     if(form.checkValidity()) {
-                        const formData = new FormData(form);
-                        const data = Object.fromEntries(formData.entries());
-                        
-                        // Handle File Input Manually to get Base64
-                        const fileInput = form.querySelector('input[type="file"]');
-                        if (fileInput && fileInput.files[0]) {
-                            data.image = await fileToBase64(fileInput.files[0]);
-                        } else {
-                            // Keep existing image if no new file
-                            const existingImg = fields.find(f => f.name === 'image');
-                            if(existingImg && existingImg.value) data.image = existingImg.value;
-                        }
-                        // Cleanup file object from text data
-                        if (data['image'] instanceof File) delete data['image'];
-
-                        saveCallback(data);
-                        this.closeModal();
+                        const btn = $('#modal-save-btn');
+                        const originalText = btn.textContent;
+                        btn.textContent = "Saving...";
+                        btn.disabled = true;
+                        try {
+                            const formData = new FormData(form);
+                            const data = Object.fromEntries(formData.entries());
+                            const fileInput = form.querySelector('input[type="file"]');
+                            if (fileInput && fileInput.files[0]) {
+                                data.image = await fileToBase64(fileInput.files[0]);
+                            } else {
+                                const existingImg = fields.find(f => f.name === 'image');
+                                if(existingImg && existingImg.value) data.image = existingImg.value;
+                            }
+                            if (data['image'] instanceof File) delete data['image'];
+                            await saveCallback(data);
+                            this.closeModal();
+                        } catch (err) { console.error("Save error:", err); alert("Error saving data: " + err.message); } 
+                        finally { btn.textContent = originalText; btn.disabled = false; }
                     } else { form.reportValidity(); }
                 };
-
                 this.modalOverlay.classList.remove('hidden');
                 this.modal.classList.remove('hidden');
-                setTimeout(() => {
-                    this.modalOverlay.classList.remove('opacity-0');
-                    this.modalContent.classList.remove('opacity-0', 'scale-95');
-                    this.modalContent.classList.add('scale-100');
-                }, 10);
+                setTimeout(() => { this.modalOverlay.classList.remove('opacity-0'); this.modalContent.classList.remove('opacity-0', 'scale-95'); this.modalContent.classList.add('scale-100'); }, 10);
             }
 
             closeModal() {
                 this.modalOverlay.classList.add('opacity-0');
                 this.modalContent.classList.add('opacity-0', 'scale-95');
                 this.modalContent.classList.remove('scale-100');
-                setTimeout(() => {
-                    this.modalOverlay.classList.add('hidden');
-                    this.modal.classList.add('hidden');
-                    $('#dynamic-form').innerHTML = '';
-                }, 200);
+                setTimeout(() => { this.modalOverlay.classList.add('hidden'); this.modal.classList.add('hidden'); $('#dynamic-form').innerHTML = ''; }, 200);
             }
 
             openLoginModal() {
                 this.modalOverlay.classList.remove('hidden');
                 this.loginModal.classList.remove('hidden');
-                // clear input
                 $('#login-password').value = '';
-                setTimeout(() => {
-                    this.modalOverlay.classList.remove('opacity-0');
-                    this.loginModalContent.classList.remove('opacity-0', 'scale-95');
-                    this.loginModalContent.classList.add('scale-100');
-                    $('#login-password').focus();
-                }, 10);
+                setTimeout(() => { this.modalOverlay.classList.remove('opacity-0'); this.loginModalContent.classList.remove('opacity-0', 'scale-95'); this.loginModalContent.classList.add('scale-100'); $('#login-password').focus(); }, 10);
             }
 
             closeLoginModal() {
                 this.modalOverlay.classList.add('opacity-0');
                 this.loginModalContent.classList.add('opacity-0', 'scale-95');
                 this.loginModalContent.classList.remove('scale-100');
-                setTimeout(() => {
-                    this.modalOverlay.classList.add('hidden');
-                    this.loginModal.classList.add('hidden');
-                }, 200);
+                setTimeout(() => { this.modalOverlay.classList.add('hidden'); this.loginModal.classList.add('hidden'); }, 200);
             }
 
             openViewModal(content) {
                 this.viewModalBody.innerHTML = content;
                 $('#modal-overlay').classList.remove('hidden');
                 this.viewModal.classList.remove('hidden');
-                
-                setTimeout(() => {
-                    $('#modal-overlay').classList.remove('opacity-0');
-                    this.viewModalContent.classList.remove('opacity-0', 'scale-95');
-                    this.viewModalContent.classList.add('scale-100');
-                }, 10);
+                setTimeout(() => { $('#modal-overlay').classList.remove('opacity-0'); this.viewModalContent.classList.remove('opacity-0', 'scale-95'); this.viewModalContent.classList.add('scale-100'); }, 10);
             }
 
             closeViewModal() {
                 $('#modal-overlay').classList.add('opacity-0');
                 this.viewModalContent.classList.add('opacity-0', 'scale-95');
                 this.viewModalContent.classList.remove('scale-100');
-                
-                setTimeout(() => {
-                    $('#modal-overlay').classList.add('hidden');
-                    this.viewModal.classList.add('hidden');
-                    this.viewModalBody.innerHTML = '';
-                }, 200);
+                setTimeout(() => { $('#modal-overlay').classList.add('hidden'); this.viewModal.classList.add('hidden'); this.viewModalBody.innerHTML = ''; }, 200);
             }
         }
 
@@ -1151,13 +787,11 @@ let firebaseConfig = {
             async init() {
                 try {
                     await this.db.connect();
-                    // Load Settings
                     const settingsDocs = await this.db.getAll('settings');
                     if (settingsDocs.length > 0) {
                         this.settings = settingsDocs[0];
                     }
                     this.ui.updateLogo(this.settings.logo);
-
                     this.navigate(this.isLoggedIn ? 'dashboard' : 'home');
                     const dEl = $('#current-date');
                     if(dEl) dEl.textContent = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
@@ -1199,30 +833,17 @@ let firebaseConfig = {
                 this.navigate('home');
             }
 
-            togglePublicMenu() {
-                const menu = document.getElementById('public-mobile-menu');
-                menu.classList.toggle('hidden');
-            }
-
             async navigate(view, params = {}) {
                 this.currentView = view;
-                
-                // Hide public menu on nav
-                const menu = document.getElementById('public-mobile-menu');
-                if(menu) menu.classList.add('hidden');
-
-                // Sidebar active state
                 $$('.nav-item').forEach(btn => {
                     btn.classList.remove('bg-slate-800', 'text-white');
                     btn.classList.add('text-slate-300');
                 });
-                // Find button that roughly matches view
                 const activeBtn = Array.from($$('.nav-item')).find(b => b.innerText.toLowerCase().includes(view.split('-')[0]));
                 if(activeBtn) { activeBtn.classList.add('bg-slate-800', 'text-white'); activeBtn.classList.remove('text-slate-300'); }
 
                 if(window.innerWidth < 768) $('#sidebar').classList.add('hidden');
 
-                // Routing
                 switch (view) {
                     case 'home': this.ui.renderHome(); break;
                     case 'public-admin':
@@ -1231,14 +852,11 @@ let firebaseConfig = {
                         break;
                     case 'public-teachers':
                         const teachersList = await this.db.getAll('teachers');
-                        // Params: { step: 'campus'|'dept'|'list', campus: '...', dept: '...' }
                         const viewState = { step: params.step || 'campus', campus: params.campus, dept: params.dept };
                         this.ui.renderPublicTeachers(viewState, teachersList);
                         break;
                     case 'public-staff': this.ui.renderPublicStaff(); break;
                     case 'public-students': this.ui.renderPublicStudents(); break;
-                    
-                    // Private Routes
                     case 'dashboard':
                         if(!this.isLoggedIn) { this.navigate('home'); return; }
                         const [s, t, c, st] = await Promise.all([
@@ -1250,7 +868,7 @@ let firebaseConfig = {
                         this.ui.renderDashboard({ students: s.length, teachers: t.length, classes: c.length, staff: st.length });
                         break;
                     case 'students': this.loadData('students', [
-                        { key: 'name', label: 'Name' }, { key: 'grade', label: 'Grade' }, { key: 'phone', label: 'Contact' }
+                        { key: 'name', label: 'Name' }, { key: 'grade', label: 'Grade' }, { key: 'campus', label: 'Campus' }, { key: 'school_year', label: 'Year' }
                     ]); break;
                     case 'teachers': this.loadData('teachers', [
                         { key: 'image', label: 'Photo' }, { key: 'name', label: 'Name' }, { key: 'campus', label: 'Campus' }, { key: 'department', label: 'Dept' }
@@ -1279,22 +897,24 @@ let firebaseConfig = {
                 this.ui.renderTable(`Manage ${title}`, cols, data, type);
             }
 
-            // Settings Logic
             async previewSettingsLogo(input) {
                 if (input.files && input.files[0]) {
-                    const base64 = await fileToBase64(input.files[0]);
-                    const preview = document.getElementById('settings-logo-preview');
-                    if (preview) preview.src = base64;
-                    else {
-                        // Handle if only icon was there
-                        const icon = document.getElementById('settings-logo-icon');
-                        if(icon) {
-                            const img = document.createElement('img');
-                            img.src = base64;
-                            img.id = 'settings-logo-preview';
-                            img.className = "w-full h-full object-cover";
-                            icon.replaceWith(img);
+                    try {
+                        const base64 = await fileToBase64(input.files[0]);
+                        const preview = document.getElementById('settings-logo-preview');
+                        if (preview) preview.src = base64;
+                        else {
+                            const icon = document.getElementById('settings-logo-icon');
+                            if(icon) {
+                                const img = document.createElement('img');
+                                img.src = base64;
+                                img.id = 'settings-logo-preview';
+                                img.className = "w-full h-full object-cover";
+                                icon.replaceWith(img);
+                            }
                         }
+                    } catch (e) {
+                        alert("File too large or invalid.");
                     }
                 }
             }
@@ -1303,17 +923,11 @@ let firebaseConfig = {
                 e.preventDefault();
                 const input = document.getElementById('settings-logo-input');
                 let newLogo = this.settings.logo;
-
                 if (input && input.files && input.files[0]) {
                     newLogo = await fileToBase64(input.files[0]);
                 }
-
                 const newSettings = { ...this.settings, logo: newLogo };
-                
-                // Save to DB
-                // We use a fixed ID 'school_config' for settings
                 await this.db.set('settings', 'school_config', newSettings);
-                
                 this.settings = newSettings;
                 this.ui.updateLogo(newLogo);
                 this.ui.showToast('Settings saved successfully', 'success');
@@ -1324,6 +938,9 @@ let firebaseConfig = {
                 if (type === 'students') return [
                     { name: 'name', label: 'Full Name', type: 'text', value: item.name, required: true },
                     { name: 'grade', label: 'Grade', type: 'text', value: item.grade, required: true },
+                    { name: 'campus', label: 'Campus', type: 'select', options: ['Sibounheuang', 'Chommany'], value: item.campus || 'Sibounheuang' },
+                    { name: 'department', label: 'Department', type: 'select', options: ['Kindergarten', 'Primary', 'Secondary', 'English'], value: item.department || 'Primary' },
+                    { name: 'school_year', label: 'School Year (e.g., 2024-2025)', type: 'text', value: item.school_year || '2024-2025', required: true },
                     { name: 'parent', label: 'Parent Name', type: 'text', value: item.parent, required: true },
                     { name: 'phone', label: 'Phone', type: 'tel', value: item.phone, required: true }
                 ];
@@ -1363,7 +980,6 @@ let firebaseConfig = {
                 this.ui.openModal(`Add ${type === 'org_members' ? 'Admin' : type.slice(0, -1)}`, fields, async (data) => {
                     await this.db.add(type, data);
                     this.ui.showToast('Added successfully', 'success');
-                    // Reload current view
                     if(this.currentView === 'public-admin' && type === 'org_members') this.navigate('public-admin');
                     else if(this.currentView === 'public-staff' && type === 'staff') this.navigate('public-staff');
                     else this.navigate(type === 'org_members' ? 'administration' : type); 
@@ -1399,9 +1015,8 @@ let firebaseConfig = {
                 if(!query) { this.navigate(this.currentView); return; }
                 const lower = query.toLowerCase();
                 const filtered = this.dataCache.filter(item => Object.values(item).some(val => String(val).toLowerCase().includes(lower)));
-                // Quick hack to get cols from current view logic
                 let cols = [];
-                if(this.currentView==='students') cols=[{key:'name',label:'Name'},{key:'grade',label:'Grade'},{key:'phone',label:'Contact'}];
+                if(this.currentView==='students') cols=[{key:'name',label:'Name'},{key:'grade',label:'Grade'},{key:'campus',label:'Campus'},{key:'school_year',label:'Year'}];
                 if(this.currentView==='teachers') cols=[{key:'image',label:'Photo'},{key:'name',label:'Name'},{key:'campus',label:'Campus'},{key:'department',label:'Dept'}];
                 if(this.currentView==='staff') cols=[{key:'image',label:'Photo'},{key:'name',label:'Name'},{key:'role',label:'Role'},{key:'contact',label:'Contact'}];
                 if(this.currentView==='administration') cols=[{key:'image',label:'Photo'},{key:'name',label:'Name'},{key:'role',label:'Role'},{key:'contact',label:'Contact'}];
@@ -1414,54 +1029,7 @@ let firebaseConfig = {
                 const teachers = await this.db.getAll('teachers');
                 const t = teachers.find(i => i.id === id);
                 if (!t) return;
-
-                const content = `
-                    <div class="relative">
-                        <div class="h-72 w-full bg-slate-200 relative">
-                             ${t.image ? `<img src="${t.image}" class="w-full h-full object-cover">` : `<div class="w-full h-full flex items-center justify-center text-slate-400"><i class="ph ph-chalkboard-teacher text-6xl"></i></div>`}
-                             <div class="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent"></div>
-                             <div class="absolute bottom-4 left-6 text-white">
-                                <h2 class="text-3xl font-bold font-serif mb-1">${t.name}</h2>
-                                <p class="text-emerald-300 font-medium tracking-wide uppercase text-sm">${t.department} Teacher</p>
-                             </div>
-                        </div>
-                        <div class="p-6 space-y-4 bg-white">
-                            <div class="flex items-center gap-4 p-3 bg-slate-50 rounded-xl border border-slate-100">
-                                <div class="w-12 h-12 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xl shadow-sm"><i class="ph ph-buildings"></i></div>
-                                <div>
-                                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Campus</p>
-                                    <p class="text-slate-800 font-bold">${t.campus}</p>
-                                </div>
-                            </div>
-                            <div class="flex items-center gap-4 p-3 bg-slate-50 rounded-xl border border-slate-100">
-                                <div class="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xl shadow-sm"><i class="ph ph-chalkboard"></i></div>
-                                <div>
-                                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Classroom</p>
-                                    <p class="text-slate-800 font-bold text-lg">${t.grade_level || '-'} <span class="text-slate-400">/</span> ${t.section || '-'}</p>
-                                </div>
-                            </div>
-                            <div class="grid grid-cols-1 gap-3">
-                                <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center gap-3">
-                                    <i class="ph ph-phone text-purple-500 text-lg"></i>
-                                    <div>
-                                        <p class="text-[10px] text-slate-400 font-bold uppercase">Phone</p>
-                                        <p class="text-slate-800 font-medium text-sm break-all">${t.phone}</p>
-                                    </div>
-                                </div>
-                                <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center gap-3">
-                                    <i class="ph ph-envelope text-orange-500 text-lg"></i>
-                                    <div>
-                                        <p class="text-[10px] text-slate-400 font-bold uppercase">Email</p>
-                                        <p class="text-slate-800 font-medium text-sm break-all">${t.email}</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="pt-4">
-                                <button onclick="ui.closeViewModal()" class="w-full py-3 bg-slate-900 text-white rounded-xl font-bold hover:bg-emerald-600 transition-all shadow-lg">Close Details</button>
-                            </div>
-                        </div>
-                    </div>
-                `;
+                const content = `<div class="relative"><div class="h-72 w-full bg-slate-200 relative">${t.image ? `<img src="${t.image}" class="w-full h-full object-cover">` : `<div class="w-full h-full flex items-center justify-center text-slate-400"><i class="ph ph-chalkboard-teacher text-6xl"></i></div>`}<div class="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent"></div><div class="absolute bottom-4 left-6 text-white"><h2 class="text-3xl font-bold font-serif mb-1">${t.name}</h2><p class="text-emerald-300 font-medium tracking-wide uppercase text-sm">${t.department} Teacher</p></div></div><div class="p-6 space-y-4 bg-white"><div class="flex items-center gap-4 p-3 bg-slate-50 rounded-xl border border-slate-100"><div class="w-12 h-12 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xl shadow-sm"><i class="ph ph-buildings"></i></div><div><p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Campus</p><p class="text-slate-800 font-bold">${t.campus}</p></div></div><div class="flex items-center gap-4 p-3 bg-slate-50 rounded-xl border border-slate-100"><div class="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xl shadow-sm"><i class="ph ph-chalkboard"></i></div><div><p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Classroom</p><p class="text-slate-800 font-bold text-lg">${t.grade_level || '-'} <span class="text-slate-400">/</span> ${t.section || '-'}</p></div></div><div class="grid grid-cols-1 gap-3"><div class="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center gap-3"><i class="ph ph-phone text-purple-500 text-lg"></i><div><p class="text-[10px] text-slate-400 font-bold uppercase">Phone</p><p class="text-slate-800 font-medium text-sm break-all">${t.phone}</p></div></div><div class="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center gap-3"><i class="ph ph-envelope text-orange-500 text-lg"></i><div><p class="text-[10px] text-slate-400 font-bold uppercase">Email</p><p class="text-slate-800 font-medium text-sm break-all">${t.email}</p></div></div></div><div class="pt-4"><button onclick="ui.closeViewModal()" class="w-full py-3 bg-slate-900 text-white rounded-xl font-bold hover:bg-emerald-600 transition-all shadow-lg">Close Details</button></div></div></div>`;
                 this.ui.openViewModal(content);
             }
         }
