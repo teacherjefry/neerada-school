@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Neerada School Management System</title>
+    <link rel="icon" id="app-favicon" href="https://unpkg.com/@phosphor-icons/web/src/assets/graduation-cap.svg"> 
     <!-- Tailwind CSS (Requires Internet) -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Phosphor Icons (Requires Internet) -->
@@ -230,9 +231,9 @@
                 img.src = event.target.result;
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
-                    // Aggressive compression: Max 500px to ensure < 1MB
-                    const MAX_WIDTH = 500;
-                    const MAX_HEIGHT = 500;
+                    // Aggressive compression: Max 400px to ensure < 1MB for all settings
+                    const MAX_WIDTH = 400;
+                    const MAX_HEIGHT = 400;
                     let width = img.width;
                     let height = img.height;
 
@@ -251,8 +252,8 @@
                     canvas.height = height;
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, width, height);
-                    // Compress to JPEG 50% quality for small string size
-                    resolve(canvas.toDataURL('image/jpeg', 0.5)); 
+                    // Compress to JPEG 40% quality for small string size
+                    resolve(canvas.toDataURL('image/jpeg', 0.4)); 
                 };
                 img.onerror = (e) => reject(e);
             };
@@ -403,6 +404,18 @@
                 }
             }
 
+            updateFavicon(iconData) {
+                if (!iconData) return;
+                let link = document.getElementById('app-favicon');
+                if (!link) {
+                    link = document.createElement('link');
+                    link.id = 'app-favicon';
+                    link.rel = 'icon';
+                    document.head.appendChild(link);
+                }
+                link.href = iconData;
+            }
+
             renderPublicNavbar() {
                 // Circular White Background for Logo
                 const logoHtml = neeradaApp.settings.logo ? 
@@ -520,7 +533,7 @@
                             </div>
                         </div>
 
-                        <!-- Welcome / Philosophy Section (Restored) -->
+                        <!-- Welcome / Philosophy Section (Restored Man Design) -->
                         <div class="py-24 px-6 max-w-7xl mx-auto">
                             <div class="grid md:grid-cols-2 gap-16 items-center">
                                 <div class="space-y-8 order-2 md:order-1">
@@ -954,7 +967,7 @@
                         </div>
                     `;
                 }
-                // Step 2: Dept
+                // Step 2: Dept (Redesigned with Centered Cards)
                 else if (viewState.step === 'dept') {
                     const depts = [
                         { name: 'Kindergarten', img: 'https://images.unsplash.com/photo-1587654780291-39c9404d746b?q=80&w=600&auto=format&fit=crop' },
@@ -980,7 +993,7 @@
                                 <span class="text-emerald-600 font-bold tracking-widest uppercase text-sm mb-3 block">${viewState.campus} Campus</span>
                                 <h2 class="text-4xl font-bold text-slate-900 font-serif">Select Department</h2>
                             </div>
-                            <div class="flex flex-wrap justify-center gap-6">
+                            <div class="flex flex-wrap justify-center gap-8">
                                 ${cards}
                             </div>
                         </div>
@@ -1093,6 +1106,10 @@
                                             <p class="mt-2 text-xs text-slate-500">Upload a square image (PNG/JPG). Max 1MB.</p>
                                         </div>
                                     </div>
+                                </div>
+                                <div class="mt-6">
+                                    <label class="block text-sm font-medium text-slate-700 mb-2">Site Favicon</label>
+                                    <input type="file" id="settings-favicon-input" accept="image/*" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
                                 </div>
                             </div>
 
@@ -1563,6 +1580,7 @@
                     const newLogo = await processFile('settings-logo-input', this.settings.logo);
                     const newHero = await processFile('settings-hero-input', this.settings.heroImage);
                     const newWelcome = await processFile('settings-welcome-image', (this.settings.welcome && this.settings.welcome.image));
+                    const newFavicon = await processFile('settings-favicon-input', this.settings.favicon);
                     
                     const currentCards = this.settings.cardImages || {};
                     const newCards = {
@@ -1573,6 +1591,7 @@
 
                     const newSettings = {
                         logo: newLogo,
+                        favicon: newFavicon,
                         heroImage: newHero,
                         cardImages: newCards,
                         stats: {
@@ -1595,10 +1614,47 @@
                     await this.db.set('settings', 'school_config', newSettings);
                     this.settings = newSettings;
                     this.ui.updateLogo(newLogo);
+                    this.ui.updateFavicon(newFavicon);
                     this.ui.showToast('Settings saved successfully', 'success');
                 } catch (err) {
                     console.error(err);
                     this.ui.showToast('Error saving settings', 'error');
+                }
+            }
+
+            async wipeAllData() {
+                if(!confirm("⚠️ CRITICAL WARNING ⚠️\n\nAre you sure you want to DELETE ALL DATA?\n\nThis will permanently remove every Student, Teacher, Staff member, and Admin record from the database.\n\nThis cannot be undone.")) return;
+                
+                const btn = document.querySelector('button[onclick="neeradaApp.wipeAllData()"]');
+                if(btn) {
+                    btn.disabled = true;
+                    btn.textContent = "Deleting everything... Please wait...";
+                }
+
+                this.ui.showToast("Starting system reset...", "info");
+                const collections = ['students', 'teachers', 'staff', 'org_members'];
+                
+                try {
+                    let totalDeleted = 0;
+                    for (const col of collections) {
+                        const docs = await this.db.getAll(col);
+                        for (const doc of docs) {
+                            if (doc.id) {
+                                await this.db.delete(col, doc.id);
+                                totalDeleted++;
+                            }
+                        }
+                    }
+                    this.ui.showToast(`System Reset Complete. Deleted ${totalDeleted} records.`, "success");
+                    // Refresh current view
+                    setTimeout(() => window.location.reload(), 1500);
+                } catch (e) {
+                    console.error(e);
+                    this.ui.showToast("Error wiping data: " + e.message, "error");
+                    if(btn) {
+                        btn.disabled = false;
+                        btn.textContent = "Delete ALL Data (Reset System)";
+                    }
                 }
             }
 
