@@ -293,7 +293,9 @@
                 try {
                     const ref = collection(db, ...this.basePath, collectionName);
                     const snapshot = await getDocs(ref);
-                    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    // FIX: Spread data first, then overwrite id with doc.id to ensure we have the actual document ID
+                    // irrespective of what garbage 'id' field might be saved inside the data.
+                    return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
                 } catch (e) {
                     console.error("Error fetching data:", e);
                     return [];
