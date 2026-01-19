@@ -424,8 +424,8 @@
                                     <button onclick="neeradaApp.navigate('home')" class="nav-link">Home</button>
                                     <button onclick="neeradaApp.navigate('public-admin')" class="nav-link">Administration</button>
                                     <button onclick="neeradaApp.navigate('public-teachers')" class="nav-link">Teachers</button>
-                                    <button onclick="neeradaApp.navigate('public-staff')" class="nav-link">Staff</button>
                                     <button onclick="neeradaApp.navigate('public-students')" class="nav-link">Students</button>
+                                    <button onclick="neeradaApp.navigate('public-staff')" class="nav-link">Staff</button>
                                 </div>
                                 <div class="flex items-center gap-4">
                                     <button onclick="neeradaApp.login()" class="bg-slate-900 hover:bg-emerald-600 text-white px-4 md:px-8 py-2 md:py-3 rounded-full text-xs md:text-sm font-medium transition-all shadow-xl hover:shadow-emerald-500/30 transform hover:-translate-y-0.5">
@@ -437,8 +437,8 @@
                                 <button onclick="neeradaApp.navigate('home')" class="whitespace-nowrap hover:text-emerald-600 flex-shrink-0">Home</button>
                                 <button onclick="neeradaApp.navigate('public-admin')" class="whitespace-nowrap hover:text-emerald-600 flex-shrink-0">Administration</button>
                                 <button onclick="neeradaApp.navigate('public-teachers')" class="whitespace-nowrap hover:text-emerald-600 flex-shrink-0">Teachers</button>
-                                <button onclick="neeradaApp.navigate('public-staff')" class="whitespace-nowrap hover:text-emerald-600 flex-shrink-0">Staff</button>
                                 <button onclick="neeradaApp.navigate('public-students')" class="whitespace-nowrap hover:text-emerald-600 flex-shrink-0">Students</button>
+                                <button onclick="neeradaApp.navigate('public-staff')" class="whitespace-nowrap hover:text-emerald-600 flex-shrink-0">Staff</button>
                             </div>
                         </div>
                     </nav>
@@ -464,6 +464,11 @@
                 const imgPri = imgs.pri || 'https://images.unsplash.com/photo-1588072432836-e10032774350?q=80&w=2000&auto=format&fit=crop';
                 const imgSec = imgs.sec || 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?q=80&w=2000&auto=format&fit=crop'; 
                 const quote = s.quote || { text: "Education is not the learning of facts, but the training of the mind to think.", author: "Albert Einstein" };
+                const welcome = s.welcome || { 
+                    title: "Nurturing Minds,\nBuilding Character.", 
+                    text: "At Neerada School, education goes beyond textbooks. We believe in fostering an environment where critical thinking, emotional intelligence, and creativity flourish side by side with nature. Our dual-campus approach ensures specialized attention for every age group.",
+                    image: "https://images.unsplash.com/photo-1544531586-fde5298cdd40?q=80&w=2070&auto=format&fit=crop"
+                };
 
                 this.contentArea.innerHTML = `
                     <div class="min-h-full flex flex-col bg-white fade-in font-sans scroll-smooth">
@@ -512,6 +517,24 @@
                             <div class="p-4">
                                 <div class="text-4xl font-serif font-bold text-emerald-300 mb-1">${stats.c4}</div>
                                 <div class="text-xs uppercase tracking-widest opacity-80">Years</div>
+                            </div>
+                        </div>
+
+                        <!-- Welcome / Philosophy Section (Restored) -->
+                        <div class="py-24 px-6 max-w-7xl mx-auto">
+                            <div class="grid md:grid-cols-2 gap-16 items-center">
+                                <div class="space-y-8 order-2 md:order-1">
+                                    <div class="inline-flex items-center gap-2 text-blue-600 font-bold tracking-widest uppercase text-sm">
+                                        <span class="w-8 h-[2px] bg-blue-600"></span>
+                                        Welcome to Neerada
+                                    </div>
+                                    <h2 class="text-5xl font-bold text-slate-900 leading-[1.1] font-serif" style="white-space: pre-line;">${welcome.title}</h2>
+                                    <p class="text-slate-600 text-lg leading-relaxed font-light">${welcome.text}</p>
+                                </div>
+                                <div class="relative group order-1 md:order-2">
+                                    <div class="absolute -inset-4 bg-gradient-to-tr from-blue-100 to-emerald-100 rounded-[2.5rem] transform rotate-3 group-hover:rotate-1 transition-transform duration-700 opacity-70"></div>
+                                    <img src="${welcome.image}" class="relative rounded-2xl shadow-2xl w-full h-[500px] object-cover transform transition-transform duration-500 group-hover:scale-[1.01]" alt="Student Learning">
+                                </div>
                             </div>
                         </div>
 
@@ -940,7 +963,7 @@
                     ];
                     
                     const cards = depts.map(d => `
-                         <div onclick="neeradaApp.navigate('public-students', { step: 'list', campus: '${viewState.campus}', dept: '${d.name}' })" class="bg-white rounded-2xl shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all cursor-pointer overflow-hidden group h-64 relative">
+                         <div onclick="neeradaApp.navigate('public-students', { step: 'list', campus: '${viewState.campus}', dept: '${d.name}' })" class="bg-white rounded-2xl shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all cursor-pointer overflow-hidden group h-64 relative w-full sm:w-[300px]">
                             <img src="${d.img}" class="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700">
                             <div class="absolute inset-0 bg-slate-900/50 group-hover:bg-slate-900/40 transition-colors"></div>
                             <div class="absolute inset-0 flex flex-col items-center justify-center text-white p-4 text-center">
@@ -957,7 +980,7 @@
                                 <span class="text-emerald-600 font-bold tracking-widest uppercase text-sm mb-3 block">${viewState.campus} Campus</span>
                                 <h2 class="text-4xl font-bold text-slate-900 font-serif">Select Department</h2>
                             </div>
-                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                            <div class="flex flex-wrap justify-center gap-6">
                                 ${cards}
                             </div>
                         </div>
@@ -1043,6 +1066,12 @@
                 const s = currentSettings.stats || { c1: '2', c2: '1500+', c3: '100%', c4: '25+' };
                 const imgs = currentSettings.cardImages || {};
                 const q = currentSettings.quote || { text: "", author: "" };
+                const w = currentSettings.welcome || { 
+                    title: "Nurturing Minds,\nBuilding Character.", 
+                    text: "At Neerada School, education goes beyond textbooks. We believe in fostering an environment where critical thinking, emotional intelligence, and creativity flourish side by side with nature. Our dual-campus approach ensures specialized attention for every age group.",
+                    image: ""
+                };
+                const welcomeImg = w.image || 'https://images.unsplash.com/photo-1544531586-fde5298cdd40?q=80&w=2070&auto=format&fit=crop';
 
                 this.contentArea.innerHTML = `
                     <div class="max-w-4xl mx-auto space-y-8 fade-in">
@@ -1078,7 +1107,25 @@
                                 </div>
                             </div>
 
-                            <!-- HOME PAGE IMAGES -->
+                            <!-- WELCOME / MAN DESIGN SECTION -->
+                            <div class="bg-white p-8 rounded-xl shadow-sm border border-slate-200">
+                                <h3 class="text-xl font-bold text-slate-800 mb-6 pb-4 border-b border-slate-100 flex items-center gap-2"><i class="ph ph-article"></i> Welcome Section (Man Design)</h3>
+                                <div class="space-y-4">
+                                    <div><label class="block text-sm font-medium text-slate-700 mb-1">Title</label><textarea id="settings-welcome-title" class="w-full px-4 py-2 border border-slate-300 rounded-lg h-20">${w.title}</textarea></div>
+                                    <div><label class="block text-sm font-medium text-slate-700 mb-1">Description Text</label><textarea id="settings-welcome-text" class="w-full px-4 py-2 border border-slate-300 rounded-lg h-32">${w.text}</textarea></div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-slate-700 mb-1">Section Image</label>
+                                        <div class="flex items-center gap-4">
+                                            <div class="w-20 h-20 bg-slate-100 rounded-lg overflow-hidden border border-slate-200 shrink-0">
+                                                <img src="${welcomeImg}" class="w-full h-full object-cover">
+                                            </div>
+                                            <input type="file" id="settings-welcome-image" accept="image/*" class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- HOME PAGE CARD IMAGES -->
                             <div class="bg-white p-8 rounded-xl shadow-sm border border-slate-200">
                                 <h3 class="text-xl font-bold text-slate-800 mb-6 pb-4 border-b border-slate-100 flex items-center gap-2"><i class="ph ph-images"></i> Home Page Images</h3>
                                 <div class="space-y-6">
@@ -1502,51 +1549,56 @@
 
             async saveSettings(e) {
                 e.preventDefault();
-                const input = document.getElementById('settings-logo-input');
-                let newLogo = this.settings.logo;
-                if (input && input.files && input.files[0]) {
-                    newLogo = await fileToBase64(input.files[0]);
-                }
-                const newSettings = { ...this.settings, logo: newLogo };
-                await this.db.set('settings', 'school_config', newSettings);
-                this.settings = newSettings;
-                this.ui.updateLogo(newLogo);
-                this.ui.showToast('Settings saved successfully', 'success');
-            }
+                this.ui.showToast('Saving...', 'info');
 
-            async wipeAllData() {
-                if(!confirm("⚠️ CRITICAL WARNING ⚠️\n\nAre you sure you want to DELETE ALL DATA?\n\nThis will permanently remove every Student, Teacher, Staff member, and Admin record from the database.\n\nThis cannot be undone.")) return;
-                
-                const btn = document.querySelector('button[onclick="neeradaApp.wipeAllData()"]');
-                if(btn) {
-                    btn.disabled = true;
-                    btn.textContent = "Deleting everything... Please wait...";
-                }
+                const processFile = async (id, currentVal) => {
+                    const input = document.getElementById(id);
+                    if (input && input.files && input.files[0]) {
+                        return await fileToBase64(input.files[0]);
+                    }
+                    return currentVal;
+                };
 
-                this.ui.showToast("Starting system reset...", "info");
-                const collections = ['students', 'teachers', 'staff', 'org_members'];
-                
                 try {
-                    let totalDeleted = 0;
-                    for (const col of collections) {
-                        const docs = await this.db.getAll(col);
-                        for (const doc of docs) {
-                            if (doc.id) {
-                                await this.db.delete(col, doc.id);
-                                totalDeleted++;
-                            }
+                    const newLogo = await processFile('settings-logo-input', this.settings.logo);
+                    const newHero = await processFile('settings-hero-input', this.settings.heroImage);
+                    const newWelcome = await processFile('settings-welcome-image', (this.settings.welcome && this.settings.welcome.image));
+                    
+                    const currentCards = this.settings.cardImages || {};
+                    const newCards = {
+                        kg: await processFile('settings-kg-input', currentCards.kg),
+                        pri: await processFile('settings-pri-input', currentCards.pri),
+                        sec: await processFile('settings-sec-input', currentCards.sec)
+                    };
+
+                    const newSettings = {
+                        logo: newLogo,
+                        heroImage: newHero,
+                        cardImages: newCards,
+                        stats: {
+                            c1: $('#settings-stat-campuses').value,
+                            c2: $('#settings-stat-students').value,
+                            c3: $('#settings-stat-passrate').value,
+                            c4: $('#settings-stat-years').value
+                        },
+                        quote: {
+                            text: $('#settings-quote-text').value,
+                            author: $('#settings-quote-author').value
+                        },
+                        welcome: {
+                            title: $('#settings-welcome-title').value,
+                            text: $('#settings-welcome-text').value,
+                            image: newWelcome || 'https://images.unsplash.com/photo-1544531586-fde5298cdd40?q=80&w=2070&auto=format&fit=crop'
                         }
-                    }
-                    this.ui.showToast(`System Reset Complete. Deleted ${totalDeleted} records.`, "success");
-                    // Refresh current view
-                    setTimeout(() => window.location.reload(), 1500);
-                } catch (e) {
-                    console.error(e);
-                    this.ui.showToast("Error wiping data: " + e.message, "error");
-                    if(btn) {
-                        btn.disabled = false;
-                        btn.textContent = "Delete ALL Data (Reset System)";
-                    }
+                    };
+
+                    await this.db.set('settings', 'school_config', newSettings);
+                    this.settings = newSettings;
+                    this.ui.updateLogo(newLogo);
+                    this.ui.showToast('Settings saved successfully', 'success');
+                } catch (err) {
+                    console.error(err);
+                    this.ui.showToast('Error saving settings', 'error');
                 }
             }
 
