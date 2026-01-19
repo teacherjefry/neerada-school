@@ -43,43 +43,43 @@
         <nav class="flex-1 overflow-y-auto py-4">
             <ul class="space-y-1 px-3">
                 <li>
-                    <button onclick="app.navigate('dashboard')" class="nav-item w-full flex items-center px-4 py-3 text-slate-300 hover:bg-slate-800 hover:text-white rounded-lg transition-colors group">
+                    <button onclick="neeradaApp.navigate('dashboard')" class="nav-item w-full flex items-center px-4 py-3 text-slate-300 hover:bg-slate-800 hover:text-white rounded-lg transition-colors group">
                         <i class="ph ph-squares-four text-xl mr-3 group-hover:text-blue-400"></i>
                         Dashboard
                     </button>
                 </li>
                 <li>
-                    <button onclick="app.navigate('administration')" class="nav-item w-full flex items-center px-4 py-3 text-slate-300 hover:bg-slate-800 hover:text-white rounded-lg transition-colors group">
+                    <button onclick="neeradaApp.navigate('administration')" class="nav-item w-full flex items-center px-4 py-3 text-slate-300 hover:bg-slate-800 hover:text-white rounded-lg transition-colors group">
                         <i class="ph ph-buildings text-xl mr-3 group-hover:text-blue-400"></i>
                         Administration
                     </button>
                 </li>
                 <li>
-                    <button onclick="app.navigate('teachers')" class="nav-item w-full flex items-center px-4 py-3 text-slate-300 hover:bg-slate-800 hover:text-white rounded-lg transition-colors group">
+                    <button onclick="neeradaApp.navigate('teachers')" class="nav-item w-full flex items-center px-4 py-3 text-slate-300 hover:bg-slate-800 hover:text-white rounded-lg transition-colors group">
                         <i class="ph ph-chalkboard-teacher text-xl mr-3 group-hover:text-blue-400"></i>
                         Teachers
                     </button>
                 </li>
                 <li>
-                    <button onclick="app.navigate('staff')" class="nav-item w-full flex items-center px-4 py-3 text-slate-300 hover:bg-slate-800 hover:text-white rounded-lg transition-colors group">
+                    <button onclick="neeradaApp.navigate('staff')" class="nav-item w-full flex items-center px-4 py-3 text-slate-300 hover:bg-slate-800 hover:text-white rounded-lg transition-colors group">
                         <i class="ph ph-users text-xl mr-3 group-hover:text-blue-400"></i>
                         Staff
                     </button>
                 </li>
                 <li>
-                    <button onclick="app.navigate('students')" class="nav-item w-full flex items-center px-4 py-3 text-slate-300 hover:bg-slate-800 hover:text-white rounded-lg transition-colors group">
+                    <button onclick="neeradaApp.navigate('students')" class="nav-item w-full flex items-center px-4 py-3 text-slate-300 hover:bg-slate-800 hover:text-white rounded-lg transition-colors group">
                         <i class="ph ph-student text-xl mr-3 group-hover:text-blue-400"></i>
                         Students
                     </button>
                 </li>
                 <li>
-                    <button onclick="app.navigate('classes')" class="nav-item w-full flex items-center px-4 py-3 text-slate-300 hover:bg-slate-800 hover:text-white rounded-lg transition-colors group">
+                    <button onclick="neeradaApp.navigate('classes')" class="nav-item w-full flex items-center px-4 py-3 text-slate-300 hover:bg-slate-800 hover:text-white rounded-lg transition-colors group">
                         <i class="ph ph-books text-xl mr-3 group-hover:text-blue-400"></i>
                         Classes
                     </button>
                 </li>
                 <li class="mt-4 pt-4 border-t border-slate-700">
-                    <button onclick="app.navigate('home')" class="nav-item w-full flex items-center px-4 py-3 text-slate-300 hover:bg-slate-800 hover:text-white rounded-lg transition-colors group">
+                    <button onclick="neeradaApp.navigate('home')" class="nav-item w-full flex items-center px-4 py-3 text-slate-300 hover:bg-slate-800 hover:text-white rounded-lg transition-colors group">
                         <i class="ph ph-globe text-xl mr-3 group-hover:text-emerald-400"></i>
                         View Website
                     </button>
@@ -197,9 +197,9 @@ let firebaseConfig = {
         }
 
         // Initialize Firebase
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
+        const firebaseApp = initializeApp(firebaseConfig);
+        const auth = getAuth(firebaseApp);
+        const db = getFirestore(firebaseApp);
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'neerada-school-public';
 
         async function initAuth() {
@@ -899,7 +899,7 @@ let firebaseConfig = {
         }
 
         // --- Application Logic ---
-        class App {
+        class SchoolApp {
             constructor() {
                 this.db = new DBService();
                 this.ui = new UIManager();
@@ -1148,7 +1148,7 @@ let firebaseConfig = {
             }
         }
 
-        const neeradaApp = new App();
+        const neeradaApp = new SchoolApp();
         const ui = neeradaApp.ui;
         window.neeradaApp = neeradaApp;
         window.ui = ui;
