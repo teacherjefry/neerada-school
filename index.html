@@ -1568,48 +1568,69 @@
                 e.preventDefault();
                 this.ui.showToast('Saving...', 'info');
 
+                // Helper to handle file uploads or keep existing value
+                // FIX: Ensures we never return 'undefined', returning null instead for DB compatibility
                 const processFile = async (id, currentVal) => {
                     const input = document.getElementById(id);
                     if (input && input.files && input.files[0]) {
-                        return await fileToBase64(input.files[0]);
+                        try {
+                            return await fileToBase64(input.files[0]);
+                        } catch (err) {
+                            console.warn("File processing failed, keeping old value", err);
+                            return currentVal !== undefined ? currentVal : null;
+                        }
                     }
-                    return currentVal;
+                    return currentVal !== undefined ? currentVal : null;
                 };
 
                 try {
+                    // Safe access to nested properties
+                    const currentWelcome = this.settings.welcome || {};
+                    const currentCards = this.settings.cardImages || {};
+
                     const newLogo = await processFile('settings-logo-input', this.settings.logo);
                     const newHero = await processFile('settings-hero-input', this.settings.heroImage);
-                    const newWelcome = await processFile('settings-welcome-image', (this.settings.welcome && this.settings.welcome.image));
+                    const newWelcomeImg = await processFile('settings-welcome-image', currentWelcome.image);
                     const newFavicon = await processFile('settings-favicon-input', this.settings.favicon);
                     
-                    const currentCards = this.settings.cardImages || {};
                     const newCards = {
                         kg: await processFile('settings-kg-input', currentCards.kg),
                         pri: await processFile('settings-pri-input', currentCards.pri),
                         sec: await processFile('settings-sec-input', currentCards.sec)
                     };
 
+                    // Construct new object with fallbacks for text fields to prevent empty/undefined errors
                     const newSettings = {
                         logo: newLogo,
                         favicon: newFavicon,
                         heroImage: newHero,
                         cardImages: newCards,
                         stats: {
-                            c1: $('#settings-stat-campuses').value,
-                            c2: $('#settings-stat-students').value,
-                            c3: $('#settings-stat-passrate').value,
-                            c4: $('#settings-stat-years').value
+                            c1: $('#settings-stat-campuses').value || "",
+                            c2: $('#settings-stat-students').value || "",
+                            c3: $('#settings-stat-passrate').value || "",
+                            c4: $('#settings-stat-years').value || ""
                         },
                         quote: {
-                            text: $('#settings-quote-text').value,
-                            author: $('#settings-quote-author').value
+                            text: $('#settings-quote-text').value || "",
+                            author: $('#settings-quote-author').value || ""
                         },
                         welcome: {
-                            title: $('#settings-welcome-title').value,
-                            text: $('#settings-welcome-text').value,
-                            image: newWelcome || 'https://images.unsplash.com/photo-1544531586-fde5298cdd40?q=80&w=2070&auto=format&fit=crop'
+                            title: $('#settings-welcome-title').value || "",
+                            text: $('#settings-welcome-text').value || "",
+                            image: newWelcomeImg || 'https://images.unsplash.com/photo-1544531586-fde5298cdd40?q=80&w=2070&auto=format&fit=crop'
                         }
                     };
+
+                    // Sanitize object to remove any lingering undefined keys (deep check not strictly needed with above logic but safe practice for Firestore)
+                    const sanitize = (obj) => {
+                        Object.keys(obj).forEach(key => {
+                            if (obj[key] === undefined) obj[key] = null;
+                            else if (typeof obj[key] === 'object' && obj[key] !== null) sanitize(obj[key]);
+                        });
+                        return obj;
+                    };
+                    sanitize(newSettings);
 
                     await this.db.set('settings', 'school_config', newSettings);
                     this.settings = newSettings;
@@ -1617,8 +1638,8 @@
                     this.ui.updateFavicon(newFavicon);
                     this.ui.showToast('Settings saved successfully', 'success');
                 } catch (err) {
-                    console.error(err);
-                    this.ui.showToast('Error saving settings', 'error');
+                    console.error("Settings Save Error:", err);
+                    this.ui.showToast('Error saving settings: ' + err.message, 'error');
                 }
             }
 
