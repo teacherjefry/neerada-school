@@ -29,15 +29,21 @@
 
         /* File Upload Preview */
         .image-preview { width: 100px; height: 130px; border-radius: 8px; object-fit: cover; border: 2px solid #e2e8f0; margin-top: 10px; }
+        
+        /* Logo Styling */
+        #sidebar-logo-container img { max-height: 40px; width: auto; }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 h-screen flex overflow-hidden">
 
     <!-- Sidebar -->
     <aside class="w-64 bg-slate-900 text-white flex-col hidden md:flex transition-all duration-300 shadow-xl z-20" id="sidebar">
-        <div class="h-16 flex items-center px-6 border-b border-slate-700">
-            <i class="ph ph-graduation-cap text-3xl text-blue-400 mr-3"></i>
-            <span class="font-bold text-xl tracking-tight">Neerada School</span>
+        <div class="h-16 flex items-center px-6 border-b border-slate-700" id="sidebar-header">
+            <div id="sidebar-logo-container" class="flex items-center">
+                <i class="ph ph-graduation-cap text-3xl text-blue-400 mr-3" id="default-sidebar-icon"></i>
+                <!-- Logo img injected here via JS -->
+                <span class="font-bold text-xl tracking-tight">Neerada School</span>
+            </div>
         </div>
 
         <nav class="flex-1 overflow-y-auto py-4">
@@ -60,12 +66,7 @@
                         Teachers
                     </button>
                 </li>
-                <li>
-                    <button onclick="neeradaApp.navigate('staff')" class="nav-item w-full flex items-center px-4 py-3 text-slate-300 hover:bg-slate-800 hover:text-white rounded-lg transition-colors group">
-                        <i class="ph ph-users text-xl mr-3 group-hover:text-blue-400"></i>
-                        Staff
-                    </button>
-                </li>
+                <!-- Moved Students Tab Here -->
                 <li>
                     <button onclick="neeradaApp.navigate('students')" class="nav-item w-full flex items-center px-4 py-3 text-slate-300 hover:bg-slate-800 hover:text-white rounded-lg transition-colors group">
                         <i class="ph ph-student text-xl mr-3 group-hover:text-blue-400"></i>
@@ -73,9 +74,21 @@
                     </button>
                 </li>
                 <li>
+                    <button onclick="neeradaApp.navigate('staff')" class="nav-item w-full flex items-center px-4 py-3 text-slate-300 hover:bg-slate-800 hover:text-white rounded-lg transition-colors group">
+                        <i class="ph ph-users text-xl mr-3 group-hover:text-blue-400"></i>
+                        Staff
+                    </button>
+                </li>
+                <li>
                     <button onclick="neeradaApp.navigate('classes')" class="nav-item w-full flex items-center px-4 py-3 text-slate-300 hover:bg-slate-800 hover:text-white rounded-lg transition-colors group">
                         <i class="ph ph-books text-xl mr-3 group-hover:text-blue-400"></i>
                         Classes
+                    </button>
+                </li>
+                <li>
+                    <button onclick="neeradaApp.navigate('settings')" class="nav-item w-full flex items-center px-4 py-3 text-slate-300 hover:bg-slate-800 hover:text-white rounded-lg transition-colors group">
+                        <i class="ph ph-gear text-xl mr-3 group-hover:text-blue-400"></i>
+                        Settings
                     </button>
                 </li>
                 <li class="mt-4 pt-4 border-t border-slate-700">
@@ -125,6 +138,27 @@
     <!-- Modals -->
     <div id="modal-overlay" class="fixed inset-0 bg-black/50 hidden z-40 backdrop-blur-sm transition-opacity opacity-0"></div>
     
+    <!-- Login Modal -->
+    <div id="login-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center pointer-events-none">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm mx-4 pointer-events-auto transform scale-95 transition-all duration-200 opacity-0" id="login-modal-content">
+            <div class="p-6 text-center">
+                <div class="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="ph ph-lock-key text-3xl"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-2">Admin Access</h3>
+                <p class="text-slate-500 text-sm mb-6">Enter password to access dashboard</p>
+                
+                <form onsubmit="neeradaApp.processLogin(event)">
+                    <input type="password" id="login-password" placeholder="Password (****)" class="w-full px-4 py-3 border border-slate-300 rounded-lg outline-none focus:border-blue-500 text-center tracking-widest mb-4 transition-colors" autofocus>
+                    <div class="flex gap-2">
+                        <button type="button" onclick="neeradaApp.closeLoginModal()" class="flex-1 px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-medium transition-colors">Cancel</button>
+                        <button type="submit" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium shadow-md transition-all hover:shadow-lg transform active:scale-95">Login</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <!-- Generic Form Modal -->
     <div id="form-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center pointer-events-none">
         <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 pointer-events-auto transform scale-95 transition-all duration-200 opacity-0" id="form-modal-content">
@@ -164,7 +198,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- Utils & Config ---
         const $ = (selector) => document.querySelector(selector);
@@ -243,6 +277,12 @@ let firebaseConfig = {
                 await addDoc(ref, item);
             }
 
+            // Custom method to set specific document (useful for settings)
+            async set(collectionName, docId, data) {
+                const ref = doc(db, ...this.basePath, collectionName, docId);
+                await setDoc(ref, data);
+            }
+
             async update(collectionName, item) {
                 const id = item.id;
                 const data = { ...item };
@@ -268,6 +308,10 @@ let firebaseConfig = {
                 this.modalOverlay = $('#modal-overlay');
                 this.modalContent = $('#form-modal-content');
                 
+                // Login Modal
+                this.loginModal = $('#login-modal');
+                this.loginModalContent = $('#login-modal-content');
+
                 // View Modal
                 this.viewModal = $('#view-modal');
                 this.viewModalContent = $('#view-modal-content');
@@ -290,17 +334,41 @@ let firebaseConfig = {
                 }, 3000);
             }
 
+            updateLogo(logoData) {
+                if (!logoData) return;
+                
+                // Update Sidebar Logo
+                const container = $('#sidebar-logo-container');
+                if (container) {
+                    const existingImg = container.querySelector('img');
+                    if (existingImg) {
+                        existingImg.src = logoData;
+                    } else {
+                        // Remove icon if exists
+                        const icon = $('#default-sidebar-icon');
+                        if (icon) icon.remove();
+                        // Add img
+                        const img = document.createElement('img');
+                        img.src = logoData;
+                        img.className = "mr-3 rounded object-cover";
+                        container.insertBefore(img, container.firstChild);
+                    }
+                }
+            }
+
             // --- PUBLIC VIEW METHODS ---
 
             renderPublicNavbar() {
+                const logoHtml = neeradaApp.settings.logo ? 
+                    `<img src="${neeradaApp.settings.logo}" class="w-12 h-12 rounded-xl shadow-lg shadow-emerald-200 group-hover:scale-105 transition-transform object-cover">` : 
+                    `<div class="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-600 via-emerald-500 to-green-400 flex items-center justify-center text-white shadow-lg shadow-emerald-200 group-hover:scale-105 transition-transform"><i class="ph ph-plant text-2xl"></i></div>`;
+
                 return `
                     <nav class="fixed w-full z-50 transition-all duration-300 bg-white/95 backdrop-blur-md border-b border-emerald-100/50 shadow-sm">
                         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                             <div class="flex justify-between items-center h-24">
                                 <div class="flex items-center gap-3 group cursor-pointer" onclick="neeradaApp.navigate('home')">
-                                    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-600 via-emerald-500 to-green-400 flex items-center justify-center text-white shadow-lg shadow-emerald-200 group-hover:scale-105 transition-transform">
-                                        <i class="ph ph-plant text-2xl"></i>
-                                    </div>
+                                    ${logoHtml}
                                     <div class="flex flex-col">
                                         <span class="font-serif font-bold text-2xl tracking-wide text-slate-800 leading-none">NEERADA</span>
                                         <span class="text-xs font-bold tracking-[0.2em] text-emerald-600 uppercase">School</span>
@@ -717,6 +785,44 @@ let firebaseConfig = {
                 `;
             }
 
+            // --- SETTINGS RENDERER ---
+            renderSettings(currentSettings) {
+                this.sidebar.classList.remove('hidden');
+                this.sidebar.classList.add('md:flex');
+                this.mainHeader.style.display = 'flex';
+                this.contentArea.classList.add('p-4', 'md:p-8');
+                this.pageTitle.textContent = "Settings";
+
+                const logoSrc = currentSettings.logo || '';
+
+                this.contentArea.innerHTML = `
+                    <div class="max-w-2xl mx-auto bg-white p-8 rounded-xl shadow-sm border border-slate-200 fade-in">
+                        <h3 class="text-xl font-bold text-slate-800 mb-6 pb-4 border-b border-slate-100">School Configuration</h3>
+                        
+                        <form onsubmit="neeradaApp.saveSettings(event)" class="space-y-6">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">School Logo</label>
+                                <div class="flex items-center gap-6">
+                                    <div class="w-24 h-24 rounded-xl bg-slate-100 border-2 border-dashed border-slate-300 flex items-center justify-center overflow-hidden relative">
+                                        ${logoSrc ? `<img src="${logoSrc}" id="settings-logo-preview" class="w-full h-full object-cover">` : `<i class="ph ph-image text-3xl text-slate-400" id="settings-logo-icon"></i>`}
+                                    </div>
+                                    <div class="flex-1">
+                                        <input type="file" id="settings-logo-input" accept="image/*" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition-colors" onchange="neeradaApp.previewSettingsLogo(this)">
+                                        <p class="mt-2 text-xs text-slate-500">Upload a square image (PNG/JPG). Max 1MB.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="pt-6 border-t border-slate-100 flex justify-end">
+                                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium shadow-md transition-all active:scale-95 flex items-center gap-2">
+                                    <i class="ph ph-floppy-disk text-lg"></i> Save Changes
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                `;
+            }
+
             // --- DASHBOARD METHODS ---
 
             renderDashboard(stats) {
@@ -867,6 +973,29 @@ let firebaseConfig = {
                 }, 200);
             }
 
+            openLoginModal() {
+                this.modalOverlay.classList.remove('hidden');
+                this.loginModal.classList.remove('hidden');
+                // clear input
+                $('#login-password').value = '';
+                setTimeout(() => {
+                    this.modalOverlay.classList.remove('opacity-0');
+                    this.loginModalContent.classList.remove('opacity-0', 'scale-95');
+                    this.loginModalContent.classList.add('scale-100');
+                    $('#login-password').focus();
+                }, 10);
+            }
+
+            closeLoginModal() {
+                this.modalOverlay.classList.add('opacity-0');
+                this.loginModalContent.classList.add('opacity-0', 'scale-95');
+                this.loginModalContent.classList.remove('scale-100');
+                setTimeout(() => {
+                    this.modalOverlay.classList.add('hidden');
+                    this.loginModal.classList.add('hidden');
+                }, 200);
+            }
+
             openViewModal(content) {
                 this.viewModalBody.innerHTML = content;
                 $('#modal-overlay').classList.remove('hidden');
@@ -906,12 +1035,19 @@ let firebaseConfig = {
                 this.currentView = 'home';
                 this.dataCache = [];
                 this.isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+                this.settings = { logo: null };
             }
 
             async init() {
                 try {
                     await this.db.connect();
-                    // $('#footer-year').textContent = new Date().getFullYear();
+                    // Load Settings
+                    const settingsDocs = await this.db.getAll('settings');
+                    if (settingsDocs.length > 0) {
+                        this.settings = settingsDocs[0];
+                    }
+                    this.ui.updateLogo(this.settings.logo);
+
                     this.navigate(this.isLoggedIn ? 'dashboard' : 'home');
                     const dEl = $('#current-date');
                     if(dEl) dEl.textContent = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
@@ -923,10 +1059,27 @@ let firebaseConfig = {
 
             login() {
                 if(this.isLoggedIn) { this.navigate('dashboard'); return; }
-                this.isLoggedIn = true;
-                localStorage.setItem('isLoggedIn', 'true');
-                this.ui.showToast("Logged in", "success");
-                this.navigate('dashboard');
+                this.ui.openLoginModal();
+            }
+
+            processLogin(e) {
+                e.preventDefault();
+                const pwd = $('#login-password').value;
+                if (pwd === '0000') {
+                    this.isLoggedIn = true;
+                    localStorage.setItem('isLoggedIn', 'true');
+                    this.ui.closeLoginModal();
+                    this.ui.showToast("Logged in successfully", "success");
+                    this.navigate('dashboard');
+                } else {
+                    this.ui.showToast("Incorrect password", "error");
+                    $('#login-password').value = '';
+                    $('#login-password').focus();
+                }
+            }
+
+            closeLoginModal() {
+                this.ui.closeLoginModal();
             }
             
             logout() {
@@ -990,6 +1143,10 @@ let firebaseConfig = {
                     case 'classes': this.loadData('classes', [
                         { key: 'name', label: 'Class' }, { key: 'room', label: 'Room' }, { key: 'schedule', label: 'Time' }
                     ]); break;
+                    case 'settings':
+                        if(!this.isLoggedIn) { this.navigate('home'); return; }
+                        this.ui.renderSettings(this.settings);
+                        break;
                 }
             }
 
@@ -999,6 +1156,46 @@ let firebaseConfig = {
                 this.dataCache = data;
                 const title = type === 'org_members' ? 'Administration' : type.charAt(0).toUpperCase() + type.slice(1);
                 this.ui.renderTable(`Manage ${title}`, cols, data, type);
+            }
+
+            // Settings Logic
+            async previewSettingsLogo(input) {
+                if (input.files && input.files[0]) {
+                    const base64 = await fileToBase64(input.files[0]);
+                    const preview = document.getElementById('settings-logo-preview');
+                    if (preview) preview.src = base64;
+                    else {
+                        // Handle if only icon was there
+                        const icon = document.getElementById('settings-logo-icon');
+                        if(icon) {
+                            const img = document.createElement('img');
+                            img.src = base64;
+                            img.id = 'settings-logo-preview';
+                            img.className = "w-full h-full object-cover";
+                            icon.replaceWith(img);
+                        }
+                    }
+                }
+            }
+
+            async saveSettings(e) {
+                e.preventDefault();
+                const input = document.getElementById('settings-logo-input');
+                let newLogo = this.settings.logo;
+
+                if (input && input.files && input.files[0]) {
+                    newLogo = await fileToBase64(input.files[0]);
+                }
+
+                const newSettings = { ...this.settings, logo: newLogo };
+                
+                // Save to DB
+                // We use a fixed ID 'school_config' for settings
+                await this.db.set('settings', 'school_config', newSettings);
+                
+                this.settings = newSettings;
+                this.ui.updateLogo(newLogo);
+                this.ui.showToast('Settings saved successfully', 'success');
             }
 
             // CRUD Configs
