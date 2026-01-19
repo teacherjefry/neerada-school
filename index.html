@@ -1,0 +1,1164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neerada School Management System</title>
+    <!-- Tailwind CSS (Requires Internet) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Phosphor Icons (Requires Internet) -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- Google Fonts (Requires Internet) -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        h1, h2, h3, .font-serif { font-family: 'Playfair Display', serif; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Custom Toast Styles */
+        #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 50; }
+        .toast { padding: 1rem; border-radius: 0.5rem; margin-top: 0.5rem; display: flex; align-items: center; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); color: white; min-width: 300px; transform: translateX(100%); transition: transform 0.3s ease-out; }
+        .toast.show { transform: translateX(0); }
+        .toast.success { background-color: #10B981; }
+        .toast.error { background-color: #EF4444; }
+        .toast.info { background-color: #3B82F6; }
+
+        /* File Upload Preview */
+        .image-preview { width: 100px; height: 130px; border-radius: 8px; object-fit: cover; border: 2px solid #e2e8f0; margin-top: 10px; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 h-screen flex overflow-hidden">
+
+    <!-- Sidebar -->
+    <aside class="w-64 bg-slate-900 text-white flex-col hidden md:flex transition-all duration-300 shadow-xl z-20" id="sidebar">
+        <div class="h-16 flex items-center px-6 border-b border-slate-700">
+            <i class="ph ph-graduation-cap text-3xl text-blue-400 mr-3"></i>
+            <span class="font-bold text-xl tracking-tight">Neerada School</span>
+        </div>
+
+        <nav class="flex-1 overflow-y-auto py-4">
+            <ul class="space-y-1 px-3">
+                <li>
+                    <button onclick="app.navigate('dashboard')" class="nav-item w-full flex items-center px-4 py-3 text-slate-300 hover:bg-slate-800 hover:text-white rounded-lg transition-colors group">
+                        <i class="ph ph-squares-four text-xl mr-3 group-hover:text-blue-400"></i>
+                        Dashboard
+                    </button>
+                </li>
+                <li>
+                    <button onclick="app.navigate('administration')" class="nav-item w-full flex items-center px-4 py-3 text-slate-300 hover:bg-slate-800 hover:text-white rounded-lg transition-colors group">
+                        <i class="ph ph-buildings text-xl mr-3 group-hover:text-blue-400"></i>
+                        Administration
+                    </button>
+                </li>
+                <li>
+                    <button onclick="app.navigate('teachers')" class="nav-item w-full flex items-center px-4 py-3 text-slate-300 hover:bg-slate-800 hover:text-white rounded-lg transition-colors group">
+                        <i class="ph ph-chalkboard-teacher text-xl mr-3 group-hover:text-blue-400"></i>
+                        Teachers
+                    </button>
+                </li>
+                <li>
+                    <button onclick="app.navigate('staff')" class="nav-item w-full flex items-center px-4 py-3 text-slate-300 hover:bg-slate-800 hover:text-white rounded-lg transition-colors group">
+                        <i class="ph ph-users text-xl mr-3 group-hover:text-blue-400"></i>
+                        Staff
+                    </button>
+                </li>
+                <li>
+                    <button onclick="app.navigate('students')" class="nav-item w-full flex items-center px-4 py-3 text-slate-300 hover:bg-slate-800 hover:text-white rounded-lg transition-colors group">
+                        <i class="ph ph-student text-xl mr-3 group-hover:text-blue-400"></i>
+                        Students
+                    </button>
+                </li>
+                <li>
+                    <button onclick="app.navigate('classes')" class="nav-item w-full flex items-center px-4 py-3 text-slate-300 hover:bg-slate-800 hover:text-white rounded-lg transition-colors group">
+                        <i class="ph ph-books text-xl mr-3 group-hover:text-blue-400"></i>
+                        Classes
+                    </button>
+                </li>
+                <li class="mt-4 pt-4 border-t border-slate-700">
+                    <button onclick="app.navigate('home')" class="nav-item w-full flex items-center px-4 py-3 text-slate-300 hover:bg-slate-800 hover:text-white rounded-lg transition-colors group">
+                        <i class="ph ph-globe text-xl mr-3 group-hover:text-emerald-400"></i>
+                        View Website
+                    </button>
+                </li>
+            </ul>
+        </nav>
+
+        <div class="p-4 border-t border-slate-700">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold">A</div>
+                <div>
+                    <p class="text-sm font-medium">Admin User</p>
+                    <p class="text-xs text-slate-400">Principal</p>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <div class="flex-1 flex flex-col h-full overflow-hidden relative">
+        <!-- Header -->
+        <header id="main-header" class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-8 shadow-sm z-10">
+            <button class="md:hidden text-slate-600 p-2 rounded-lg hover:bg-slate-100" onclick="toggleSidebar()">
+                <i class="ph ph-list text-2xl"></i>
+            </button>
+            <h2 id="page-title" class="text-xl font-semibold text-slate-800 ml-2 md:ml-0">Dashboard</h2>
+            <div class="flex items-center gap-4">
+                <div class="hidden md:block text-sm text-slate-500" id="current-date"></div>
+            </div>
+        </header>
+
+        <!-- Dynamic Content Area -->
+        <main id="main-content" class="flex-1 overflow-y-auto p-4 md:p-8 relative">
+            <!-- Content injected via JS -->
+        </main>
+
+        <!-- Footer -->
+        <footer class="bg-white border-t border-slate-200 py-3 px-6 text-center text-sm text-slate-500">
+            &copy; Neerada School <span id="footer-year"></span>. All rights reserved.
+        </footer>
+    </div>
+
+    <!-- Modals -->
+    <div id="modal-overlay" class="fixed inset-0 bg-black/50 hidden z-40 backdrop-blur-sm transition-opacity opacity-0"></div>
+    
+    <!-- Generic Form Modal -->
+    <div id="form-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center pointer-events-none">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 pointer-events-auto transform scale-95 transition-all duration-200 opacity-0" id="form-modal-content">
+            <div class="flex justify-between items-center p-6 border-b border-slate-100">
+                <h3 class="text-xl font-bold text-slate-800" id="modal-title">Add Entry</h3>
+                <button onclick="ui.closeModal()" class="text-slate-400 hover:text-slate-600 transition-colors">
+                    <i class="ph ph-x text-xl"></i>
+                </button>
+            </div>
+            <div class="p-6">
+                <form id="dynamic-form" class="space-y-4">
+                    <!-- Form fields injected here -->
+                </form>
+            </div>
+            <div class="p-6 border-t border-slate-100 bg-slate-50 rounded-b-xl flex justify-end gap-3">
+                <button onclick="ui.closeModal()" class="px-4 py-2 text-slate-600 hover:text-slate-800 font-medium">Cancel</button>
+                <button id="modal-save-btn" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium shadow-md transition-all hover:shadow-lg transform active:scale-95">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Teacher Detail View Modal (Floating Window) -->
+    <div id="view-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center pointer-events-none">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 pointer-events-auto transform scale-95 transition-all duration-200 opacity-0 relative overflow-hidden" id="view-modal-content">
+            <button onclick="ui.closeViewModal()" class="absolute top-4 right-4 z-10 bg-black/20 hover:bg-black/40 text-white rounded-full p-2 transition-colors">
+                <i class="ph ph-x text-xl"></i>
+            </button>
+            <div id="view-modal-body">
+                <!-- Content injected via JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container"></div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- Utils & Config ---
+        const $ = (selector) => document.querySelector(selector);
+        const $$ = (selector) => document.querySelectorAll(selector);
+
+        const fileToBase64 = (file) => new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = error => reject(error);
+        });
+
+        // ---------------------------------------------------------------
+        // FIREBASE CONFIGURATION
+        // If uploading to GitHub, replace the 'firebaseConfig' object below with your own 
+        // from the Firebase Console (Project Settings -> General -> Your Apps -> SDK Setup/Config)
+        // ---------------------------------------------------------------
+const firebaseConfig = {
+  apiKey: "AIzaSyDlzTfWGTOrEnYEYib6aB74IPBGGLuTn6k",
+  authDomain: "neerada-school.firebaseapp.com",
+  projectId: "neerada-school",
+  storageBucket: "neerada-school.firebasestorage.app",
+  messagingSenderId: "841887574795",
+  appId: "1:841887574795:web:8f2b4120ca23ea81fc500e"
+};
+
+        // This checks if we are running in the preview environment where variables are pre-injected
+        if (typeof __firebase_config !== 'undefined') {
+            firebaseConfig = JSON.parse(__firebase_config);
+        }
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'neerada-school-public';
+
+        async function initAuth() {
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                await signInWithCustomToken(auth, __initial_auth_token);
+            } else {
+                await signInAnonymously(auth);
+            }
+        }
+
+        // --- Database Service (Firestore) ---
+        class DBService {
+            constructor() {
+                // Using a 'public' data path so all users/staff see the same data in this demo.
+                // For a real app, you might partition this by school ID or user ID.
+                this.basePath = ['artifacts', appId, 'public', 'data']; 
+            }
+
+            async connect() {
+                // Wait for auth before trying to access DB
+                if (!auth.currentUser) {
+                    await initAuth();
+                }
+            }
+
+            async getAll(collectionName) {
+                try {
+                    const ref = collection(db, ...this.basePath, collectionName);
+                    const snapshot = await getDocs(ref);
+                    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                } catch (e) {
+                    console.error("Error fetching data:", e);
+                    return [];
+                }
+            }
+
+            async add(collectionName, item) {
+                const ref = collection(db, ...this.basePath, collectionName);
+                // Ensure no ID is sent to addDoc (it generates one)
+                if (item.id) delete item.id;
+                await addDoc(ref, item);
+            }
+
+            async update(collectionName, item) {
+                const id = item.id;
+                const data = { ...item };
+                delete data.id; // Don't save the ID inside the document data
+                const ref = doc(db, ...this.basePath, collectionName, id);
+                await updateDoc(ref, data);
+            }
+
+            async delete(collectionName, id) {
+                const ref = doc(db, ...this.basePath, collectionName, id);
+                await deleteDoc(ref);
+            }
+        }
+
+        // --- UI Manager ---
+        class UIManager {
+            constructor() {
+                this.contentArea = $('#main-content');
+                this.pageTitle = $('#page-title');
+                this.mainHeader = $('#main-header');
+                this.sidebar = $('#sidebar');
+                this.modal = $('#form-modal');
+                this.modalOverlay = $('#modal-overlay');
+                this.modalContent = $('#form-modal-content');
+                
+                // View Modal
+                this.viewModal = $('#view-modal');
+                this.viewModalContent = $('#view-modal-content');
+                this.viewModalBody = $('#view-modal-body');
+                
+                this.toastContainer = $('#toast-container');
+            }
+
+            showToast(message, type = 'info') {
+                const toast = document.createElement('div');
+                toast.className = `toast ${type}`;
+                let iconClass = type === 'success' ? 'ph-check-circle' : type === 'error' ? 'ph-warning-circle' : 'ph-info';
+                
+                toast.innerHTML = `<i class="ph ${iconClass} text-2xl mr-3"></i><span class="font-medium">${message}</span>`;
+                this.toastContainer.appendChild(toast);
+                requestAnimationFrame(() => toast.classList.add('show'));
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                    setTimeout(() => toast.remove(), 300);
+                }, 3000);
+            }
+
+            // --- PUBLIC VIEW METHODS ---
+
+            renderPublicNavbar() {
+                return `
+                    <nav class="fixed w-full z-50 transition-all duration-300 bg-white/95 backdrop-blur-md border-b border-emerald-100/50 shadow-sm">
+                        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                            <div class="flex justify-between items-center h-24">
+                                <div class="flex items-center gap-3 group cursor-pointer" onclick="neeradaApp.navigate('home')">
+                                    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-600 via-emerald-500 to-green-400 flex items-center justify-center text-white shadow-lg shadow-emerald-200 group-hover:scale-105 transition-transform">
+                                        <i class="ph ph-plant text-2xl"></i>
+                                    </div>
+                                    <div class="flex flex-col">
+                                        <span class="font-serif font-bold text-2xl tracking-wide text-slate-800 leading-none">NEERADA</span>
+                                        <span class="text-xs font-bold tracking-[0.2em] text-emerald-600 uppercase">School</span>
+                                    </div>
+                                </div>
+                                <div class="hidden md:flex items-center gap-8 text-sm font-semibold text-slate-600">
+                                    <button onclick="neeradaApp.navigate('home')" class="hover:text-emerald-600 transition-colors">Home</button>
+                                    <button onclick="neeradaApp.navigate('public-admin')" class="hover:text-emerald-600 transition-colors">Administration</button>
+                                    <button onclick="neeradaApp.navigate('public-teachers')" class="hover:text-emerald-600 transition-colors">Teachers</button>
+                                    <button onclick="neeradaApp.navigate('public-staff')" class="hover:text-emerald-600 transition-colors">Staff</button>
+                                </div>
+                                <button onclick="neeradaApp.login()" class="bg-slate-900 hover:bg-emerald-600 text-white px-8 py-3 rounded-full text-sm font-medium transition-all shadow-xl hover:shadow-emerald-500/30 transform hover:-translate-y-0.5">
+                                    ${neeradaApp.isLoggedIn ? 'Dashboard' : 'Login'}
+                                </button>
+                            </div>
+                        </div>
+                    </nav>
+                `;
+            }
+
+            setupPublicView() {
+                this.sidebar.classList.add('hidden');
+                this.sidebar.classList.remove('md:flex');
+                this.mainHeader.style.display = 'none';
+                this.contentArea.classList.remove('p-4', 'md:p-8');
+            }
+
+            renderHome() {
+                this.setupPublicView();
+                this.contentArea.innerHTML = `
+                    <div class="min-h-full flex flex-col bg-white fade-in font-sans scroll-smooth">
+                        ${this.renderPublicNavbar()}
+                        
+                        <!-- Hero Section -->
+                        <div class="relative h-screen flex items-center justify-center overflow-hidden bg-slate-900">
+                             <div class="absolute inset-0 z-0">
+                                <img src="https://images.unsplash.com/photo-1541829070764-84a7d30dd3f3?q=80&w=2069&auto=format&fit=crop" class="w-full h-full object-cover scale-105 animate-[pulse_10s_ease-in-out_infinite]" alt="School Campus" onerror="this.src='https://placehold.co/1920x1080?text=Neerada+School+Campus';">
+                                <div class="absolute inset-0 bg-gradient-to-b from-slate-900/70 via-slate-900/50 to-slate-900/80 mix-blend-multiply"></div>
+                            </div>
+                            <div class="relative z-10 max-w-7xl mx-auto px-6 text-center pt-20">
+                                <h1 class="text-5xl md:text-7xl lg:text-8xl font-black text-white mb-8 leading-tight tracking-tight drop-shadow-2xl">
+                                    <span class="block text-white drop-shadow-md mb-2">NEERADA</span> 
+                                    <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-300 via-emerald-300 to-green-200 font-serif italic">SCHOOL</span>
+                                </h1>
+                                <p class="text-slate-200 text-xl md:text-2xl mb-12 max-w-2xl mx-auto leading-relaxed font-light border-l-4 border-emerald-500 pl-6 text-left md:text-center md:border-l-0 md:border-t-2 md:pt-6 md:border-emerald-500/50">
+                                    Cultivating Excellence. Rooted in Values. Empowering the next generation of leaders in Laos.
+                                </p>
+                                <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                                    <button onclick="document.getElementById('academics').scrollIntoView({behavior: 'smooth'})" class="bg-emerald-600 text-white px-8 py-4 rounded-full font-bold hover:bg-emerald-700 transition-all shadow-lg hover:shadow-emerald-500/40 transform hover:-translate-y-1">
+                                        Discover Our Programs
+                                    </button>
+                                </div>
+                            </div>
+                            <!-- Scroll Indicator -->
+                            <div class="absolute bottom-10 left-1/2 transform -translate-x-1/2 animate-bounce text-white/50">
+                                <i class="ph ph-arrow-down text-3xl"></i>
+                            </div>
+                        </div>
+
+                        <!-- Quick Stats Strip -->
+                        <div class="bg-emerald-900 text-white py-12 relative z-20 -mt-8 mx-4 md:mx-12 rounded-xl shadow-2xl grid grid-cols-2 md:grid-cols-4 gap-8 text-center divide-x divide-emerald-800/50">
+                            <div class="p-4">
+                                <div class="text-4xl font-serif font-bold text-emerald-300 mb-1">2</div>
+                                <div class="text-xs uppercase tracking-widest opacity-80">Campuses</div>
+                            </div>
+                            <div class="p-4">
+                                <div class="text-4xl font-serif font-bold text-emerald-300 mb-1">1500+</div>
+                                <div class="text-xs uppercase tracking-widest opacity-80">Students</div>
+                            </div>
+                            <div class="p-4">
+                                <div class="text-4xl font-serif font-bold text-emerald-300 mb-1">100%</div>
+                                <div class="text-xs uppercase tracking-widest opacity-80">Pass Rate</div>
+                            </div>
+                            <div class="p-4">
+                                <div class="text-4xl font-serif font-bold text-emerald-300 mb-1">25+</div>
+                                <div class="text-xs uppercase tracking-widest opacity-80">Years</div>
+                            </div>
+                        </div>
+
+                        <!-- Welcome / Philosophy Section -->
+                        <div class="py-24 px-6 max-w-7xl mx-auto">
+                            <div class="grid md:grid-cols-2 gap-16 items-center">
+                                <div class="space-y-8 order-2 md:order-1">
+                                    <div class="inline-flex items-center gap-2 text-blue-600 font-bold tracking-widest uppercase text-sm">
+                                        <span class="w-8 h-[2px] bg-blue-600"></span>
+                                        Welcome to Neerada
+                                    </div>
+                                    <h2 class="text-5xl font-bold text-slate-900 leading-[1.1] font-serif">
+                                        Nurturing Minds,<br>
+                                        <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-emerald-600">Building Character.</span>
+                                    </h2>
+                                    <p class="text-slate-600 text-lg leading-relaxed font-light">
+                                        At Neerada School, education goes beyond textbooks. We believe in fostering an environment where critical thinking, emotional intelligence, and creativity flourish side by side with nature. Our dual-campus approach ensures specialized attention for every age group.
+                                    </p>
+                                </div>
+                                <div class="relative group order-1 md:order-2">
+                                    <div class="absolute -inset-4 bg-gradient-to-tr from-blue-100 to-emerald-100 rounded-[2.5rem] transform rotate-3 group-hover:rotate-1 transition-transform duration-700 opacity-70"></div>
+                                    <img src="https://images.unsplash.com/photo-1544531586-fde5298cdd40?q=80&w=2070&auto=format&fit=crop" class="relative rounded-2xl shadow-2xl w-full h-[500px] object-cover transform transition-transform duration-500 group-hover:scale-[1.01]" alt="Student Learning" onerror="this.src='https://placehold.co/600x400?text=Student+Learning'">
+                                    <div class="absolute bottom-8 left-8 bg-white/90 backdrop-blur-md p-6 rounded-xl shadow-lg max-w-xs border-l-4 border-emerald-500">
+                                        <p class="font-serif italic text-slate-800">"Education is the most powerful weapon which you can use to change the world."</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Academic Pathways (Cards) -->
+                        <div id="academics" class="bg-slate-50 py-24 px-6">
+                            <div class="max-w-7xl mx-auto">
+                                <div class="text-center mb-16">
+                                    <span class="text-emerald-600 font-bold tracking-widest uppercase text-sm mb-2 block">Our Programs</span>
+                                    <h2 class="text-4xl md:text-5xl font-bold text-slate-900 mb-6 font-serif">Academic Pathways</h2>
+                                    <div class="w-24 h-1 bg-gradient-to-r from-blue-500 to-emerald-500 mx-auto rounded-full"></div>
+                                </div>
+
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                                    <!-- Card 1 -->
+                                    <div class="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all group">
+                                        <div class="h-48 overflow-hidden relative">
+                                            <img src="https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?q=80&w=2000&auto=format&fit=crop" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" onerror="this.src='https://placehold.co/600x400?text=Kindergarten'">
+                                            <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                                            <div class="absolute bottom-4 left-4 text-white">
+                                                <span class="bg-yellow-400 text-yellow-900 text-xs font-bold px-2 py-1 rounded mb-2 inline-block">Ages 3-5</span>
+                                                <h3 class="text-xl font-bold">Kindergarten</h3>
+                                            </div>
+                                        </div>
+                                        <div class="p-8">
+                                            <p class="text-slate-600 mb-6 line-clamp-3">A nurturing environment focusing on play-based learning, social skills, and early literacy in Lao and English.</p>
+                                            <button onclick="neeradaApp.navigate('public-teachers', {step: 'dept', campus: 'Chommany', dept: 'Kindergarten'})" class="text-emerald-600 font-bold hover:text-emerald-700 flex items-center gap-2 group-hover:gap-3 transition-all">
+                                                Meet the Teachers <i class="ph ph-arrow-right"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Card 2 -->
+                                    <div class="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all group">
+                                        <div class="h-48 overflow-hidden relative">
+                                            <img src="https://images.unsplash.com/photo-1588072432836-e10032774350?q=80&w=2000&auto=format&fit=crop" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" onerror="this.src='https://placehold.co/600x400?text=Primary'">
+                                            <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                                            <div class="absolute bottom-4 left-4 text-white">
+                                                <span class="bg-blue-400 text-blue-900 text-xs font-bold px-2 py-1 rounded mb-2 inline-block">Ages 6-10</span>
+                                                <h3 class="text-xl font-bold">Primary School</h3>
+                                            </div>
+                                        </div>
+                                        <div class="p-8">
+                                            <p class="text-slate-600 mb-6 line-clamp-3">Building strong foundations in mathematics, sciences, and languages with a focus on curiosity and discipline.</p>
+                                            <button onclick="neeradaApp.navigate('public-teachers', {step: 'dept', campus: 'Sibounheuang', dept: 'Primary'})" class="text-blue-600 font-bold hover:text-blue-700 flex items-center gap-2 group-hover:gap-3 transition-all">
+                                                Meet the Teachers <i class="ph ph-arrow-right"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Card 3 -->
+                                    <div class="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all group">
+                                        <div class="h-48 overflow-hidden relative">
+                                            <img src="https://images.unsplash.com/photo-1523240795612-9a054b0db644?q=80&w=2000&auto=format&fit=crop" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" onerror="this.src='https://placehold.co/600x400?text=Secondary'">
+                                            <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                                            <div class="absolute bottom-4 left-4 text-white">
+                                                <span class="bg-emerald-400 text-emerald-900 text-xs font-bold px-2 py-1 rounded mb-2 inline-block">Ages 11-17</span>
+                                                <h3 class="text-xl font-bold">Secondary School</h3>
+                                            </div>
+                                        </div>
+                                        <div class="p-8">
+                                            <p class="text-slate-600 mb-6 line-clamp-3">Preparing students for higher education with advanced curriculum, laboratory work, and leadership opportunities.</p>
+                                            <button onclick="neeradaApp.navigate('public-teachers', {step: 'dept', campus: 'Sibounheuang', dept: 'Secondary'})" class="text-emerald-600 font-bold hover:text-emerald-700 flex items-center gap-2 group-hover:gap-3 transition-all">
+                                                Meet the Teachers <i class="ph ph-arrow-right"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Footer CTA -->
+                        <div class="bg-white py-20 px-6 text-center">
+                            <div class="max-w-3xl mx-auto">
+                                <h2 class="text-3xl font-bold text-slate-900 mb-6 font-serif">Visit Us Today</h2>
+                                <p class="text-slate-600 mb-8">
+                                    Experience the Neerada difference. Our administration team is ready to welcome you to our Sibounheuang and Chommany campuses.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            renderPublicAdmin(members) {
+                this.setupPublicView();
+                const canEdit = neeradaApp.isLoggedIn;
+                
+                let cards = members.map(m => `
+                    <div class="bg-white rounded-2xl shadow-xl overflow-hidden group hover:shadow-2xl transition-all border border-slate-100 flex flex-col items-center p-8 text-center relative">
+                        ${canEdit ? `
+                            <div class="absolute top-4 right-4 flex gap-2 z-10 bg-white/80 backdrop-blur rounded-full p-1 shadow-sm">
+                                <button onclick="neeradaApp.openEditModal('org_members', '${m.id}')" class="text-blue-600 hover:text-blue-800 p-2 rounded-full hover:bg-blue-50"><i class="ph ph-pencil-simple text-lg"></i></button>
+                                <button onclick="neeradaApp.deleteItem('org_members', '${m.id}')" class="text-red-500 hover:text-red-700 p-2 rounded-full hover:bg-red-50"><i class="ph ph-trash text-lg"></i></button>
+                            </div>
+                        ` : ''}
+                        <div class="w-64 h-64 mb-6 relative">
+                            <div class="w-full h-full rounded-2xl overflow-hidden border-4 border-white shadow-lg bg-slate-100">
+                                ${m.image ? `<img src="${m.image}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">` : `<div class="w-full h-full flex flex-col items-center justify-center text-slate-400 bg-slate-50"><i class="ph ph-user text-6xl mb-2"></i><span class="text-sm">No Photo</span></div>`}
+                            </div>
+                        </div>
+                        <h3 class="font-serif font-bold text-2xl text-slate-900 mb-1">${m.name}</h3>
+                        <div class="inline-block px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs font-bold tracking-wider uppercase mb-4">${m.role}</div>
+                        
+                        <div class="w-full space-y-2 border-t border-slate-100 pt-4 mt-auto">
+                            ${m.contact ? `
+                                <div class="flex items-center justify-center gap-2 text-slate-600 text-sm">
+                                    <i class="ph ph-address-book text-emerald-500 text-lg"></i>
+                                    <span>${m.contact}</span>
+                                </div>
+                            ` : '<span class="text-slate-400 italic text-sm">Contact info unavailable</span>'}
+                        </div>
+                    </div>
+                `).join('');
+
+                if(members.length === 0) {
+                    cards = `<div class="col-span-full text-center text-slate-400 py-20 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">Organization chart is being updated.</div>`;
+                }
+
+                this.contentArea.innerHTML = `
+                    <div class="min-h-full flex flex-col bg-slate-50 fade-in font-sans">
+                        ${this.renderPublicNavbar()}
+                        <div class="pt-32 pb-20 px-6 max-w-7xl mx-auto w-full">
+                            <div class="text-center mb-16">
+                                <h2 class="text-4xl md:text-5xl font-bold text-slate-900 mb-4 font-serif">Administration</h2>
+                                <div class="w-24 h-1.5 bg-gradient-to-r from-blue-500 to-emerald-500 mx-auto rounded-full mb-6"></div>
+                                <p class="text-slate-600 text-lg max-w-2xl mx-auto">Meet the visionary leaders guiding Neerada School towards excellence.</p>
+                                ${canEdit ? `<button onclick="neeradaApp.openAddModal('org_members')" class="mt-8 bg-emerald-600 text-white px-8 py-3 rounded-full text-sm font-bold shadow-lg hover:bg-emerald-700 transition-all flex items-center gap-2 mx-auto"><i class="ph ph-plus text-lg"></i> Add Administrator</button>` : ''}
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+                                ${cards}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            renderPublicTeachers(viewState = { step: 'campus', campus: null, dept: null }, teachers = []) {
+                this.setupPublicView();
+                let content = '';
+                
+                // STEP 1: Select Campus (Now with Big Pictures)
+                if (viewState.step === 'campus') {
+                    content = `
+                        <div class="text-center mb-16">
+                            <h2 class="text-4xl md:text-5xl font-bold text-slate-900 font-serif mb-4">Our Faculty</h2>
+                            <p class="text-slate-500 text-lg">Select a campus to explore our teaching staff.</p>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-10 max-w-5xl mx-auto">
+                            <!-- Sibounheuang Campus Card -->
+                            <div onclick="neeradaApp.navigate('public-teachers', { step: 'dept', campus: 'Sibounheuang' })" class="bg-white rounded-3xl shadow-xl hover:shadow-2xl transition-all cursor-pointer group overflow-hidden relative h-80">
+                                <img src="https://images.unsplash.com/photo-1562774053-701939374585?q=80&w=1000&auto=format&fit=crop" class="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt="Sibounheuang Campus">
+                                <div class="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/40 to-transparent"></div>
+                                <div class="absolute bottom-0 left-0 p-8 text-white">
+                                    <h3 class="text-3xl font-bold font-serif mb-2 group-hover:text-blue-300 transition-colors">Sibounheuang Campus</h3>
+                                    <p class="text-slate-200 flex items-center gap-2 font-medium">Primary & Secondary <i class="ph ph-arrow-right"></i></p>
+                                </div>
+                            </div>
+                            <!-- Chommany Campus Card -->
+                            <div onclick="neeradaApp.navigate('public-teachers', { step: 'dept', campus: 'Chommany' })" class="bg-white rounded-3xl shadow-xl hover:shadow-2xl transition-all cursor-pointer group overflow-hidden relative h-80">
+                                <img src="https://images.unsplash.com/photo-1503676260728-1c00da094a0b?q=80&w=1000&auto=format&fit=crop" class="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt="Chommany Campus">
+                                <div class="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/40 to-transparent"></div>
+                                <div class="absolute bottom-0 left-0 p-8 text-white">
+                                    <h3 class="text-3xl font-bold font-serif mb-2 group-hover:text-emerald-300 transition-colors">Chommany Campus</h3>
+                                    <p class="text-slate-200 flex items-center gap-2 font-medium">Kindergarten <i class="ph ph-arrow-right"></i></p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } 
+                // STEP 2: Select Department
+                else if (viewState.step === 'dept') {
+                    const depts = [
+                        { name: 'Kindergarten', img: 'https://images.unsplash.com/photo-1587654780291-39c9404d746b?q=80&w=600&auto=format&fit=crop' },
+                        { name: 'Primary', img: 'https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=600&auto=format&fit=crop' },
+                        { name: 'Secondary', img: 'https://images.unsplash.com/photo-1427504746696-ea5abd7dfe5b?q=80&w=600&auto=format&fit=crop' },
+                        { name: 'English', img: 'https://images.unsplash.com/photo-1543269865-cbf427effbad?q=80&w=600&auto=format&fit=crop' }
+                    ];
+                    
+                    const cards = depts.map(d => `
+                         <div onclick="neeradaApp.navigate('public-teachers', { step: 'list', campus: '${viewState.campus}', dept: '${d.name}' })" class="bg-white rounded-2xl shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all cursor-pointer overflow-hidden group h-64 relative">
+                            <img src="${d.img}" class="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700">
+                            <div class="absolute inset-0 bg-slate-900/50 group-hover:bg-slate-900/40 transition-colors"></div>
+                            <div class="absolute inset-0 flex flex-col items-center justify-center text-white p-4 text-center">
+                                <h3 class="text-2xl font-bold font-serif mb-2">${d.name}</h3>
+                                <span class="text-xs font-bold uppercase tracking-widest border border-white/50 px-3 py-1 rounded-full group-hover:bg-white group-hover:text-slate-900 transition-all">View Faculty</span>
+                            </div>
+                        </div>
+                    `).join('');
+
+                    content = `
+                        <div class="max-w-7xl mx-auto">
+                            <button onclick="neeradaApp.navigate('public-teachers')" class="mb-8 text-slate-500 hover:text-slate-900 flex items-center gap-2 font-medium transition-colors"><div class="p-2 bg-white rounded-full shadow-sm"><i class="ph ph-arrow-left"></i></div> Back to Campuses</button>
+                            <div class="text-center mb-16">
+                                <span class="text-emerald-600 font-bold tracking-widest uppercase text-sm mb-3 block">${viewState.campus} Campus</span>
+                                <h2 class="text-4xl font-bold text-slate-900 font-serif">Select Department</h2>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                                ${cards}
+                            </div>
+                        </div>
+                    `;
+                }
+                // STEP 3: List Teachers (LARGE 3x4 CARDS)
+                else if (viewState.step === 'list') {
+                    const filtered = teachers.filter(t => t.campus === viewState.campus && t.department === viewState.dept);
+                    let listHtml = '';
+                    if (filtered.length === 0) {
+                        listHtml = `<div class="col-span-full text-center py-20 text-slate-400 bg-white rounded-3xl border-2 border-dashed border-slate-200">No teachers found for this section yet.</div>`;
+                    } else {
+                        listHtml = filtered.map(t => `
+                            <div onclick="neeradaApp.showTeacherDetails('${t.id}')" class="bg-white rounded-2xl shadow-xl overflow-hidden group hover:shadow-2xl transition-all border border-slate-100 flex flex-col items-center p-6 text-center relative cursor-pointer transform hover:-translate-y-1">
+                                <div class="w-64 h-[320px] mb-6 relative rounded-xl overflow-hidden shadow-md bg-slate-50">
+                                    ${t.image ? `<img src="${t.image}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">` : `<div class="w-full h-full flex flex-col items-center justify-center text-slate-400 bg-slate-50"><i class="ph ph-chalkboard-teacher text-6xl mb-2"></i><span class="text-sm">No Photo</span></div>`}
+                                </div>
+                                <h3 class="font-serif font-bold text-2xl text-slate-900 mb-1">${t.name}</h3>
+                                <div class="inline-block px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs font-bold tracking-wider uppercase mb-4">View Details</div>
+                                
+                                <div class="w-full space-y-3 border-t border-slate-100 pt-4 mt-auto text-left">
+                                    <div class="flex items-center gap-3 text-slate-600 text-sm justify-center">
+                                        <i class="ph ph-chalkboard text-emerald-500 text-lg"></i>
+                                        <span class="font-medium">${t.grade_level || 'Grade N/A'} - ${t.section || 'Sec N/A'}</span>
+                                    </div>
+                                    <div class="flex items-center gap-3 text-slate-600 text-sm justify-center">
+                                        <i class="ph ph-phone text-purple-500 text-lg"></i>
+                                        <span class="font-medium">${t.phone}</span>
+                                    </div>
+                                    <div class="flex items-center gap-3 text-slate-600 text-sm justify-center">
+                                        <i class="ph ph-envelope text-orange-500 text-lg"></i>
+                                        <span class="font-medium truncate max-w-[180px]">${t.email}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('');
+                    }
+
+                    content = `
+                        <div class="max-w-7xl mx-auto">
+                            <button onclick="neeradaApp.navigate('public-teachers', { step: 'dept', campus: '${viewState.campus}' })" class="mb-8 text-slate-500 hover:text-slate-900 flex items-center gap-2 font-medium transition-colors"><div class="p-2 bg-white rounded-full shadow-sm"><i class="ph ph-arrow-left"></i></div> Back to Departments</button>
+                            <div class="text-center mb-16">
+                                <span class="text-emerald-600 font-bold tracking-widest uppercase text-sm mb-3 block">${viewState.campus} Campus</span>
+                                <h2 class="text-4xl md:text-5xl font-bold text-slate-900 font-serif">${viewState.dept} Teachers</h2>
+                                <div class="w-24 h-1.5 bg-gradient-to-r from-blue-500 to-emerald-500 mx-auto rounded-full mt-6"></div>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10 justify-items-center">
+                                ${listHtml}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                this.contentArea.innerHTML = `
+                    <div class="min-h-full flex flex-col bg-slate-50 fade-in font-sans">
+                        ${this.renderPublicNavbar()}
+                        <div class="pt-32 pb-20 px-6 w-full">
+                            ${content}
+                        </div>
+                    </div>
+                `;
+            }
+
+            async renderPublicStaff() {
+                this.setupPublicView();
+                const canEdit = neeradaApp.isLoggedIn;
+                const members = await neeradaApp.db.getAll('staff');
+                
+                let cards = members.map(m => `
+                    <div class="bg-white rounded-2xl shadow-xl overflow-hidden group hover:shadow-2xl transition-all border border-slate-100 flex flex-col items-center p-8 text-center relative">
+                        ${canEdit ? `
+                            <div class="absolute top-4 right-4 flex gap-2 z-10 bg-white/80 backdrop-blur rounded-full p-1 shadow-sm">
+                                <button onclick="neeradaApp.openEditModal('staff', '${m.id}')" class="text-blue-600 hover:text-blue-800 p-2 rounded-full hover:bg-blue-50"><i class="ph ph-pencil-simple text-lg"></i></button>
+                                <button onclick="neeradaApp.deleteItem('staff', '${m.id}')" class="text-red-500 hover:text-red-700 p-2 rounded-full hover:bg-red-50"><i class="ph ph-trash text-lg"></i></button>
+                            </div>
+                        ` : ''}
+                        <div class="w-64 h-64 mb-6 relative">
+                            <div class="w-full h-full rounded-2xl overflow-hidden border-4 border-white shadow-lg bg-slate-100">
+                                ${m.image ? `<img src="${m.image}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">` : `<div class="w-full h-full flex flex-col items-center justify-center text-slate-400 bg-slate-50"><i class="ph ph-user text-6xl mb-2"></i><span class="text-sm">No Photo</span></div>`}
+                            </div>
+                        </div>
+                        <h3 class="font-serif font-bold text-2xl text-slate-900 mb-1">${m.name}</h3>
+                        <div class="inline-block px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full text-xs font-bold tracking-wider uppercase mb-4">${m.role}</div>
+                        
+                        <div class="w-full space-y-2 border-t border-slate-100 pt-4 mt-auto">
+                            ${m.contact ? `
+                                <div class="flex items-center justify-center gap-2 text-slate-600 text-sm">
+                                    <i class="ph ph-address-book text-indigo-500 text-lg"></i>
+                                    <span>${m.contact}</span>
+                                </div>
+                            ` : '<span class="text-slate-400 italic text-sm">Contact info unavailable</span>'}
+                        </div>
+                    </div>
+                `).join('');
+
+                if(members.length === 0) {
+                    cards = `<div class="col-span-full text-center text-slate-400 py-20 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">Staff directory is being updated.</div>`;
+                }
+
+                this.contentArea.innerHTML = `
+                    <div class="min-h-full flex flex-col bg-slate-50 fade-in font-sans">
+                        ${this.renderPublicNavbar()}
+                        <div class="pt-32 pb-20 px-6 max-w-7xl mx-auto w-full">
+                            <div class="text-center mb-16">
+                                <h2 class="text-4xl md:text-5xl font-bold text-slate-900 mb-4 font-serif">Support Staff</h2>
+                                <div class="w-24 h-1.5 bg-gradient-to-r from-blue-500 to-indigo-500 mx-auto rounded-full mb-6"></div>
+                                <p class="text-slate-600 text-lg max-w-2xl mx-auto">The dedicated team ensuring a safe and productive environment for all.</p>
+                                ${canEdit ? `<button onclick="neeradaApp.openAddModal('staff')" class="mt-8 bg-blue-600 text-white px-8 py-3 rounded-full text-sm font-bold shadow-lg hover:bg-blue-700 transition-all flex items-center gap-2 mx-auto"><i class="ph ph-plus text-lg"></i> Add Staff Member</button>` : ''}
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+                                ${cards}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // --- DASHBOARD METHODS ---
+
+            renderDashboard(stats) {
+                this.sidebar.classList.add('hidden'); // Ensure hidden on mobile default
+                this.sidebar.classList.add('md:flex'); // Ensure visible on desktop
+                this.mainHeader.style.display = 'flex';
+                this.contentArea.classList.add('p-4', 'md:p-8');
+                
+                this.pageTitle.textContent = "Dashboard";
+                this.contentArea.innerHTML = `
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 fade-in">
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between">
+                            <div><p class="text-slate-500 text-sm font-medium">Students</p><h3 class="text-3xl font-bold text-slate-800 mt-1">${stats.students}</h3></div>
+                            <div class="w-12 h-12 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center"><i class="ph ph-student text-2xl"></i></div>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between">
+                            <div><p class="text-slate-500 text-sm font-medium">Teachers</p><h3 class="text-3xl font-bold text-slate-800 mt-1">${stats.teachers}</h3></div>
+                            <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-lg flex items-center justify-center"><i class="ph ph-chalkboard-teacher text-2xl"></i></div>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between">
+                            <div><p class="text-slate-500 text-sm font-medium">Staff</p><h3 class="text-3xl font-bold text-slate-800 mt-1">${stats.staff}</h3></div>
+                            <div class="w-12 h-12 bg-orange-100 text-orange-600 rounded-lg flex items-center justify-center"><i class="ph ph-users text-2xl"></i></div>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between">
+                            <div><p class="text-slate-500 text-sm font-medium">Classes</p><h3 class="text-3xl font-bold text-slate-800 mt-1">${stats.classes}</h3></div>
+                            <div class="w-12 h-12 bg-purple-100 text-purple-600 rounded-lg flex items-center justify-center"><i class="ph ph-books text-2xl"></i></div>
+                        </div>
+                    </div>
+                    <div class="mt-8 bg-gradient-to-br from-slate-800 to-slate-900 text-white p-8 rounded-xl shadow-lg relative overflow-hidden">
+                         <div class="relative z-10">
+                            <h3 class="text-2xl font-bold mb-2">Welcome Back!</h3>
+                            <p class="text-slate-300 mb-6">Manage data or update the public website content from here.</p>
+                            <div class="flex gap-3">
+                                <button onclick="neeradaApp.navigate('students')" class="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors">Manage Students</button>
+                                <button onclick="neeradaApp.navigate('administration')" class="bg-white/10 hover:bg-white/20 text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors">Manage Admin</button>
+                                <button onclick="neeradaApp.logout()" class="bg-red-500/20 hover:bg-red-500/40 text-red-100 px-5 py-2 rounded-lg text-sm font-medium transition-colors">Logout</button>
+                            </div>
+                         </div>
+                    </div>
+                `;
+            }
+
+            renderTable(title, columns, data, type) {
+                this.sidebar.classList.remove('hidden');
+                this.sidebar.classList.add('md:flex');
+                this.mainHeader.style.display = 'flex';
+                this.contentArea.classList.add('p-4', 'md:p-8');
+                this.pageTitle.textContent = title;
+                
+                let rowsHtml = data.length === 0 ? 
+                    `<tr><td colspan="${columns.length + 1}" class="text-center py-8 text-slate-400">No records.</td></tr>` : 
+                    data.map(item => `
+                        <tr class="hover:bg-slate-50 border-b border-slate-100 last:border-0 transition-colors">
+                            ${columns.map(col => {
+                                if (col.key === 'image') {
+                                    const imgSrc = item[col.key];
+                                    return `<td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
+                                        <div class="w-10 h-12 rounded-md bg-slate-100 overflow-hidden border border-slate-200">
+                                            ${imgSrc ? `<img src="${imgSrc}" class="w-full h-full object-cover">` : '<div class="w-full h-full flex items-center justify-center text-slate-400"><i class="ph ph-user text-xl"></i></div>'}
+                                        </div>
+                                    </td>`;
+                                }
+                                return `<td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">${item[col.key] || '-'}</td>`
+                            }).join('')}
+                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                <button onclick="neeradaApp.openEditModal('${type}', '${item.id}')" class="text-blue-600 hover:text-blue-900 mr-3"><i class="ph ph-pencil-simple"></i> Edit</button>
+                                <button onclick="neeradaApp.deleteItem('${type}', '${item.id}')" class="text-red-500 hover:text-red-700"><i class="ph ph-trash"></i> Delete</button>
+                            </td>
+                        </tr>`).join('');
+
+                this.contentArea.innerHTML = `
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col fade-in">
+                        <div class="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50 rounded-t-xl">
+                            <input type="text" placeholder="Search..." class="pl-4 pr-4 py-2 border border-slate-300 rounded-lg text-sm w-64" onkeyup="neeradaApp.filterTable(this.value)">
+                            <button onclick="neeradaApp.openAddModal('${type}')" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2"><i class="ph ph-plus-circle text-lg"></i> Add New</button>
+                        </div>
+                        <div class="overflow-x-auto"><table class="min-w-full"><thead class="bg-slate-50 border-b border-slate-200"><tr>${columns.map(c => `<th class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase">${c.label}</th>`).join('')}<th class="px-6 py-3 text-right text-xs font-semibold text-slate-500 uppercase">Actions</th></tr></thead><tbody class="bg-white divide-y divide-slate-100">${rowsHtml}</tbody></table></div>
+                    </div>
+                `;
+            }
+
+            openModal(title, fields, saveCallback) {
+                $('#modal-title').textContent = title;
+                const form = $('#dynamic-form');
+                form.innerHTML = fields.map(field => {
+                    if (field.type === 'hidden') return `<input type="hidden" name="${field.name}" value="${field.value || ''}">`;
+                    if (field.type === 'select') {
+                        return `<div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">${field.label}</label>
+                            <select name="${field.name}" class="w-full px-4 py-2 border border-slate-300 rounded-lg outline-none focus:border-blue-500">
+                                ${field.options.map(opt => `<option value="${opt}" ${field.value === opt ? 'selected' : ''}>${opt}</option>`).join('')}
+                            </select>
+                        </div>`;
+                    }
+                    if (field.type === 'file') {
+                        return `<div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">${field.label}</label>
+                            <input type="file" name="${field.name}" accept="image/*" class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                            ${field.value ? `<img src="${field.value}" class="image-preview">` : ''}
+                        </div>`;
+                    }
+                    return `<div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">${field.label}</label>
+                        <input type="${field.type}" name="${field.name}" value="${field.value || ''}" class="w-full px-4 py-2 border border-slate-300 rounded-lg outline-none focus:border-blue-500" ${field.required ? 'required' : ''}>
+                    </div>`;
+                }).join('');
+                
+                $('#modal-save-btn').onclick = async (e) => {
+                    e.preventDefault();
+                    if(form.checkValidity()) {
+                        const formData = new FormData(form);
+                        const data = Object.fromEntries(formData.entries());
+                        
+                        // Handle File Input Manually to get Base64
+                        const fileInput = form.querySelector('input[type="file"]');
+                        if (fileInput && fileInput.files[0]) {
+                            data.image = await fileToBase64(fileInput.files[0]);
+                        } else {
+                            // Keep existing image if no new file
+                            const existingImg = fields.find(f => f.name === 'image');
+                            if(existingImg && existingImg.value) data.image = existingImg.value;
+                        }
+                        // Cleanup file object from text data
+                        if (data['image'] instanceof File) delete data['image'];
+
+                        saveCallback(data);
+                        this.closeModal();
+                    } else { form.reportValidity(); }
+                };
+
+                this.modalOverlay.classList.remove('hidden');
+                this.modal.classList.remove('hidden');
+                setTimeout(() => {
+                    this.modalOverlay.classList.remove('opacity-0');
+                    this.modalContent.classList.remove('opacity-0', 'scale-95');
+                    this.modalContent.classList.add('scale-100');
+                }, 10);
+            }
+
+            closeModal() {
+                this.modalOverlay.classList.add('opacity-0');
+                this.modalContent.classList.add('opacity-0', 'scale-95');
+                this.modalContent.classList.remove('scale-100');
+                setTimeout(() => {
+                    this.modalOverlay.classList.add('hidden');
+                    this.modal.classList.add('hidden');
+                    $('#dynamic-form').innerHTML = '';
+                }, 200);
+            }
+
+            openViewModal(content) {
+                this.viewModalBody.innerHTML = content;
+                $('#modal-overlay').classList.remove('hidden');
+                this.viewModal.classList.remove('hidden');
+                
+                setTimeout(() => {
+                    $('#modal-overlay').classList.remove('opacity-0');
+                    this.viewModalContent.classList.remove('opacity-0', 'scale-95');
+                    this.viewModalContent.classList.add('scale-100');
+                }, 10);
+            }
+
+            closeViewModal() {
+                $('#modal-overlay').classList.add('opacity-0');
+                this.viewModalContent.classList.add('opacity-0', 'scale-95');
+                this.viewModalContent.classList.remove('scale-100');
+                
+                setTimeout(() => {
+                    $('#modal-overlay').classList.add('hidden');
+                    this.viewModal.classList.add('hidden');
+                    this.viewModalBody.innerHTML = '';
+                }, 200);
+            }
+        }
+
+        // --- Global Interactions ---
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('hidden');
+        }
+
+        // --- Application Logic ---
+        class App {
+            constructor() {
+                this.db = new DBService();
+                this.ui = new UIManager();
+                this.currentView = 'home';
+                this.dataCache = [];
+                this.isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+            }
+
+            async init() {
+                try {
+                    await this.db.connect();
+                    // $('#footer-year').textContent = new Date().getFullYear();
+                    this.navigate(this.isLoggedIn ? 'dashboard' : 'home');
+                    const dEl = $('#current-date');
+                    if(dEl) dEl.textContent = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                } catch (err) {
+                    console.error(err);
+                    this.ui.showToast("Database error", "error");
+                }
+            }
+
+            login() {
+                if(this.isLoggedIn) { this.navigate('dashboard'); return; }
+                this.isLoggedIn = true;
+                localStorage.setItem('isLoggedIn', 'true');
+                this.ui.showToast("Logged in", "success");
+                this.navigate('dashboard');
+            }
+            
+            logout() {
+                this.isLoggedIn = false;
+                localStorage.setItem('isLoggedIn', 'false');
+                this.ui.showToast("Logged out", "info");
+                this.navigate('home');
+            }
+
+            async navigate(view, params = {}) {
+                this.currentView = view;
+                // Sidebar active state
+                $$('.nav-item').forEach(btn => {
+                    btn.classList.remove('bg-slate-800', 'text-white');
+                    btn.classList.add('text-slate-300');
+                });
+                // Find button that roughly matches view
+                const activeBtn = Array.from($$('.nav-item')).find(b => b.innerText.toLowerCase().includes(view.split('-')[0]));
+                if(activeBtn) { activeBtn.classList.add('bg-slate-800', 'text-white'); activeBtn.classList.remove('text-slate-300'); }
+
+                if(window.innerWidth < 768) $('#sidebar').classList.add('hidden');
+
+                // Routing
+                switch (view) {
+                    case 'home': this.ui.renderHome(); break;
+                    case 'public-admin':
+                        const members = await this.db.getAll('org_members');
+                        this.ui.renderPublicAdmin(members);
+                        break;
+                    case 'public-teachers':
+                        const teachersList = await this.db.getAll('teachers');
+                        // Params: { step: 'campus'|'dept'|'list', campus: '...', dept: '...' }
+                        const viewState = { step: params.step || 'campus', campus: params.campus, dept: params.dept };
+                        this.ui.renderPublicTeachers(viewState, teachersList);
+                        break;
+                    case 'public-staff': this.ui.renderPublicStaff(); break;
+                    
+                    // Private Routes
+                    case 'dashboard':
+                        if(!this.isLoggedIn) { this.navigate('home'); return; }
+                        const [s, t, c, st] = await Promise.all([
+                            this.db.getAll('students'), 
+                            this.db.getAll('teachers'), 
+                            this.db.getAll('classes'),
+                            this.db.getAll('staff')
+                        ]);
+                        this.ui.renderDashboard({ students: s.length, teachers: t.length, classes: c.length, staff: st.length });
+                        break;
+                    case 'students': this.loadData('students', [
+                        { key: 'name', label: 'Name' }, { key: 'grade', label: 'Grade' }, { key: 'phone', label: 'Contact' }
+                    ]); break;
+                    case 'teachers': this.loadData('teachers', [
+                        { key: 'image', label: 'Photo' }, { key: 'name', label: 'Name' }, { key: 'campus', label: 'Campus' }, { key: 'department', label: 'Dept' }
+                    ]); break;
+                    case 'staff': this.loadData('staff', [
+                        { key: 'image', label: 'Photo' }, { key: 'name', label: 'Name' }, { key: 'role', label: 'Role' }, { key: 'contact', label: 'Contact' }
+                    ]); break;
+                    case 'administration': this.loadData('org_members', [
+                        { key: 'image', label: 'Photo' }, { key: 'name', label: 'Name' }, { key: 'role', label: 'Role' }, { key: 'contact', label: 'Contact' }
+                    ]); break;
+                    case 'classes': this.loadData('classes', [
+                        { key: 'name', label: 'Class' }, { key: 'room', label: 'Room' }, { key: 'schedule', label: 'Time' }
+                    ]); break;
+                }
+            }
+
+            async loadData(type, cols) {
+                if(!this.isLoggedIn) { this.navigate('home'); return; }
+                const data = await this.db.getAll(type);
+                this.dataCache = data;
+                const title = type === 'org_members' ? 'Administration' : type.charAt(0).toUpperCase() + type.slice(1);
+                this.ui.renderTable(`Manage ${title}`, cols, data, type);
+            }
+
+            // CRUD Configs
+            getFieldsFor(type, item = {}) {
+                if (type === 'students') return [
+                    { name: 'name', label: 'Full Name', type: 'text', value: item.name, required: true },
+                    { name: 'grade', label: 'Grade', type: 'text', value: item.grade, required: true },
+                    { name: 'parent', label: 'Parent Name', type: 'text', value: item.parent, required: true },
+                    { name: 'phone', label: 'Phone', type: 'tel', value: item.phone, required: true }
+                ];
+                if (type === 'teachers') return [
+                    { name: 'name', label: 'Full Name', type: 'text', value: item.name, required: true },
+                    { name: 'grade_level', label: 'Grade Level', type: 'text', value: item.grade_level, required: true },
+                    { name: 'section', label: 'Classroom/Section', type: 'text', value: item.section, required: true },
+                    { name: 'campus', label: 'Campus', type: 'select', options: ['Sibounheuang', 'Chommany'], value: item.campus || 'Sibounheuang' },
+                    { name: 'department', label: 'Department', type: 'select', options: ['Kindergarten', 'Primary', 'Secondary', 'English'], value: item.department || 'Primary' },
+                    { name: 'email', label: 'Email', type: 'email', value: item.email, required: true },
+                    { name: 'phone', label: 'Phone', type: 'tel', value: item.phone, required: true },
+                    { name: 'image', label: 'Photo', type: 'file', value: item.image, required: false }
+                ];
+                if (type === 'classes') return [
+                    { name: 'name', label: 'Class Name', type: 'text', value: item.name, required: true },
+                    { name: 'room', label: 'Room', type: 'text', value: item.room, required: true },
+                    { name: 'schedule', label: 'Schedule', type: 'text', value: item.schedule, required: true }
+                ];
+                if (type === 'org_members') return [
+                    { name: 'name', label: 'Name', type: 'text', value: item.name, required: true },
+                    { name: 'role', label: 'Role/Title', type: 'text', value: item.role, required: true },
+                    { name: 'contact', label: 'Contact/Email', type: 'text', value: item.contact, required: false },
+                    { name: 'image', label: 'Photo', type: 'file', value: item.image, required: false }
+                ];
+                if (type === 'staff') return [
+                    { name: 'name', label: 'Name', type: 'text', value: item.name, required: true },
+                    { name: 'role', label: 'Role/Position', type: 'text', value: item.role, required: true },
+                    { name: 'contact', label: 'Contact/Email', type: 'text', value: item.contact, required: true },
+                    { name: 'image', label: 'Photo', type: 'file', value: item.image, required: false }
+                ];
+                return [];
+            }
+
+            openAddModal(type) {
+                const fields = this.getFieldsFor(type);
+                fields.push({ name: 'id', label: '', type: 'hidden', value: '' });
+                this.ui.openModal(`Add ${type === 'org_members' ? 'Admin' : type.slice(0, -1)}`, fields, async (data) => {
+                    await this.db.add(type, data);
+                    this.ui.showToast('Added successfully', 'success');
+                    // Reload current view
+                    if(this.currentView === 'public-admin' && type === 'org_members') this.navigate('public-admin');
+                    else if(this.currentView === 'public-staff' && type === 'staff') this.navigate('public-staff');
+                    else this.navigate(type === 'org_members' ? 'administration' : type); 
+                });
+            }
+
+            async openEditModal(type, id) {
+                const list = await this.db.getAll(type);
+                const item = list.find(i => i.id === id);
+                if(!item) return;
+                const fields = this.getFieldsFor(type, item);
+                fields.push({ name: 'id', label: '', type: 'hidden', value: item.id });
+                this.ui.openModal(`Edit ${type === 'org_members' ? 'Admin' : type.slice(0, -1)}`, fields, async (data) => {
+                    await this.db.update(type, data);
+                    this.ui.showToast('Updated successfully', 'success');
+                     if(this.currentView === 'public-admin' && type === 'org_members') this.navigate('public-admin');
+                     else if(this.currentView === 'public-staff' && type === 'staff') this.navigate('public-staff');
+                    else this.navigate(type === 'org_members' ? 'administration' : type); 
+                });
+            }
+
+            async deleteItem(type, id) {
+                if(confirm('Delete this record?')) {
+                    await this.db.delete(type, id);
+                    this.ui.showToast('Deleted', 'info');
+                     if(this.currentView === 'public-admin' && type === 'org_members') this.navigate('public-admin');
+                     else if(this.currentView === 'public-staff' && type === 'staff') this.navigate('public-staff');
+                    else this.navigate(type === 'org_members' ? 'administration' : type); 
+                }
+            }
+
+            filterTable(query) {
+                if(!query) { this.navigate(this.currentView); return; }
+                const lower = query.toLowerCase();
+                const filtered = this.dataCache.filter(item => Object.values(item).some(val => String(val).toLowerCase().includes(lower)));
+                // Quick hack to get cols from current view logic
+                let cols = [];
+                if(this.currentView==='students') cols=[{key:'name',label:'Name'},{key:'grade',label:'Grade'},{key:'phone',label:'Contact'}];
+                if(this.currentView==='teachers') cols=[{key:'image',label:'Photo'},{key:'name',label:'Name'},{key:'campus',label:'Campus'},{key:'department',label:'Dept'}];
+                if(this.currentView==='staff') cols=[{key:'image',label:'Photo'},{key:'name',label:'Name'},{key:'role',label:'Role'},{key:'contact',label:'Contact'}];
+                if(this.currentView==='administration') cols=[{key:'image',label:'Photo'},{key:'name',label:'Name'},{key:'role',label:'Role'},{key:'contact',label:'Contact'}];
+                if(this.currentView==='classes') cols=[{key:'name',label:'Class'},{key:'room',label:'Room'},{key:'schedule',label:'Time'}];
+                this.ui.renderTable(this.ui.pageTitle.textContent, cols, filtered, this.currentView);
+                document.querySelector('input[type="text"]').value = query;
+                document.querySelector('input[type="text"]').focus();
+            }
+            async showTeacherDetails(id) {
+                const teachers = await this.db.getAll('teachers');
+                const t = teachers.find(i => i.id === id);
+                if (!t) return;
+
+                const content = `
+                    <div class="relative">
+                        <div class="h-72 w-full bg-slate-200 relative">
+                             ${t.image ? `<img src="${t.image}" class="w-full h-full object-cover">` : `<div class="w-full h-full flex items-center justify-center text-slate-400"><i class="ph ph-chalkboard-teacher text-6xl"></i></div>`}
+                             <div class="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent"></div>
+                             <div class="absolute bottom-4 left-6 text-white">
+                                <h2 class="text-3xl font-bold font-serif mb-1">${t.name}</h2>
+                                <p class="text-emerald-300 font-medium tracking-wide uppercase text-sm">${t.department} Teacher</p>
+                             </div>
+                        </div>
+                        <div class="p-6 space-y-4 bg-white">
+                            <div class="flex items-center gap-4 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                <div class="w-12 h-12 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xl shadow-sm"><i class="ph ph-buildings"></i></div>
+                                <div>
+                                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Campus</p>
+                                    <p class="text-slate-800 font-bold">${t.campus}</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-4 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                <div class="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xl shadow-sm"><i class="ph ph-chalkboard"></i></div>
+                                <div>
+                                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Classroom</p>
+                                    <p class="text-slate-800 font-bold text-lg">${t.grade_level || '-'} <span class="text-slate-400">/</span> ${t.section || '-'}</p>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-1 gap-3">
+                                <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center gap-3">
+                                    <i class="ph ph-phone text-purple-500 text-lg"></i>
+                                    <div>
+                                        <p class="text-[10px] text-slate-400 font-bold uppercase">Phone</p>
+                                        <p class="text-slate-800 font-medium text-sm break-all">${t.phone}</p>
+                                    </div>
+                                </div>
+                                <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center gap-3">
+                                    <i class="ph ph-envelope text-orange-500 text-lg"></i>
+                                    <div>
+                                        <p class="text-[10px] text-slate-400 font-bold uppercase">Email</p>
+                                        <p class="text-slate-800 font-medium text-sm break-all">${t.email}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="pt-4">
+                                <button onclick="ui.closeViewModal()" class="w-full py-3 bg-slate-900 text-white rounded-xl font-bold hover:bg-emerald-600 transition-all shadow-lg">Close Details</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                this.ui.openViewModal(content);
+            }
+        }
+
+        const neeradaApp = new App();
+        const ui = neeradaApp.ui;
+        window.neeradaApp = neeradaApp;
+        window.ui = ui;
+        
+        window.toggleSidebar = function() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('hidden');
+        };
+
+        window.addEventListener('DOMContentLoaded', () => neeradaApp.init());
+    </script>
+</body>
+</html>
