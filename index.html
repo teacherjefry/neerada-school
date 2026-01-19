@@ -673,7 +673,38 @@
                 this.contentArea.classList.add('p-4', 'md:p-8');
                 this.pageTitle.textContent = "Settings";
                 const logoSrc = currentSettings.logo || '';
-                this.contentArea.innerHTML = `<div class="max-w-2xl mx-auto bg-white p-8 rounded-xl shadow-sm border border-slate-200 fade-in"><h3 class="text-xl font-bold text-slate-800 mb-6 pb-4 border-b border-slate-100">School Configuration</h3><form onsubmit="neeradaApp.saveSettings(event)" class="space-y-6"><div><label class="block text-sm font-medium text-slate-700 mb-2">School Logo</label><div class="flex items-center gap-6"><div class="w-24 h-24 rounded-xl bg-slate-100 border-2 border-dashed border-slate-300 flex items-center justify-center overflow-hidden relative">${logoSrc ? `<img src="${logoSrc}" id="settings-logo-preview" class="w-full h-full object-cover">` : `<i class="ph ph-image text-3xl text-slate-400" id="settings-logo-icon"></i>`}</div><div class="flex-1"><input type="file" id="settings-logo-input" accept="image/*" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" onchange="neeradaApp.previewSettingsLogo(this)"><p class="mt-2 text-xs text-slate-500">Upload a square image (PNG/JPG). Max 1MB.</p></div></div></div><div class="pt-6 border-t border-slate-100 flex justify-end"><button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium shadow-md flex items-center gap-2"><i class="ph ph-floppy-disk text-lg"></i> Save Changes</button></div></form></div>`;
+                this.contentArea.innerHTML = `
+                    <div class="max-w-2xl mx-auto space-y-8 fade-in">
+                        <div class="bg-white p-8 rounded-xl shadow-sm border border-slate-200">
+                            <h3 class="text-xl font-bold text-slate-800 mb-6 pb-4 border-b border-slate-100">School Configuration</h3>
+                            <form onsubmit="neeradaApp.saveSettings(event)" class="space-y-6">
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 mb-2">School Logo</label>
+                                    <div class="flex items-center gap-6">
+                                        <div class="w-24 h-24 rounded-xl bg-slate-100 border-2 border-dashed border-slate-300 flex items-center justify-center overflow-hidden relative">
+                                            ${logoSrc ? `<img src="${logoSrc}" id="settings-logo-preview" class="w-full h-full object-cover">` : `<i class="ph ph-image text-3xl text-slate-400" id="settings-logo-icon"></i>`}
+                                        </div>
+                                        <div class="flex-1">
+                                            <input type="file" id="settings-logo-input" accept="image/*" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" onchange="neeradaApp.previewSettingsLogo(this)">
+                                            <p class="mt-2 text-xs text-slate-500">Upload a square image (PNG/JPG). Max 1MB.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="pt-6 border-t border-slate-100 flex justify-end">
+                                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium shadow-md flex items-center gap-2"><i class="ph ph-floppy-disk text-lg"></i> Save Changes</button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <div class="bg-red-50 p-8 rounded-xl shadow-sm border border-red-200">
+                            <h3 class="text-xl font-bold text-red-800 mb-4 flex items-center gap-2"><i class="ph ph-warning-diamond"></i> Danger Zone</h3>
+                            <p class="text-red-600 mb-6 text-sm">This area is for emergency maintenance. If you have corrupted data or need to reset the system, use the button below. <strong>This action cannot be undone.</strong></p>
+                            <button onclick="neeradaApp.wipeAllData()" class="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-bold shadow-md transition-all active:scale-95 flex items-center gap-2 w-full justify-center sm:w-auto">
+                                <i class="ph ph-trash text-xl"></i> Delete ALL Data (Reset System)
+                            </button>
+                        </div>
+                    </div>
+                `;
             }
 
             renderDashboard(stats) {
@@ -938,6 +969,42 @@
                 this.settings = newSettings;
                 this.ui.updateLogo(newLogo);
                 this.ui.showToast('Settings saved successfully', 'success');
+            }
+
+            async wipeAllData() {
+                if(!confirm("⚠️ CRITICAL WARNING ⚠️\n\nAre you sure you want to DELETE ALL DATA?\n\nThis will permanently remove every Student, Teacher, Staff member, and Admin record from the database.\n\nThis cannot be undone.")) return;
+                
+                const btn = document.querySelector('button[onclick="neeradaApp.wipeAllData()"]');
+                if(btn) {
+                    btn.disabled = true;
+                    btn.textContent = "Deleting everything... Please wait...";
+                }
+
+                this.ui.showToast("Starting system reset...", "info");
+                const collections = ['students', 'teachers', 'staff', 'org_members'];
+                
+                try {
+                    let totalDeleted = 0;
+                    for (const col of collections) {
+                        const docs = await this.db.getAll(col);
+                        for (const doc of docs) {
+                            if (doc.id) {
+                                await this.db.delete(col, doc.id);
+                                totalDeleted++;
+                            }
+                        }
+                    }
+                    this.ui.showToast(`System Reset Complete. Deleted ${totalDeleted} records.`, "success");
+                    // Refresh current view
+                    setTimeout(() => window.location.reload(), 1500);
+                } catch (e) {
+                    console.error(e);
+                    this.ui.showToast("Error wiping data: " + e.message, "error");
+                    if(btn) {
+                        btn.disabled = false;
+                        btn.textContent = "Delete ALL Data (Reset System)";
+                    }
+                }
             }
 
             // CRUD Configs
