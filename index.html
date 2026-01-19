@@ -533,8 +533,10 @@
             renderPublicAdmin(members) {
                 this.setupPublicView();
                 const canEdit = neeradaApp.isLoggedIn;
-                let cards = members.map(m => `
-                    <div class="bg-white rounded-2xl shadow-xl overflow-hidden group hover:shadow-2xl transition-all border border-slate-100 flex flex-col items-center p-8 text-center relative">
+                
+                // Helper to create card HTML
+                const createCard = (m) => `
+                    <div class="bg-white rounded-2xl shadow-xl overflow-hidden group hover:shadow-2xl transition-all border border-slate-100 flex flex-col items-center p-8 text-center relative w-full md:w-[350px]">
                         ${canEdit ? `
                             <div class="absolute top-4 right-4 flex gap-2 z-10 bg-white/80 backdrop-blur rounded-full p-1 shadow-sm">
                                 <button onclick="neeradaApp.openEditModal('org_members', '${m.id}')" class="text-blue-600 hover:text-blue-800 p-2 rounded-full hover:bg-blue-50"><i class="ph ph-pencil-simple text-lg"></i></button>
@@ -548,10 +550,55 @@
                         </div>
                         <h3 class="font-serif font-bold text-2xl text-slate-900 mb-1">${m.name}</h3>
                         <div class="inline-block px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs font-bold tracking-wider uppercase mb-4">${m.role}</div>
+                        
+                        <div class="w-full space-y-2 border-t border-slate-100 pt-4 mt-auto">
+                            ${m.contact ? `
+                                <div class="flex items-center justify-center gap-2 text-slate-600 text-sm">
+                                    <i class="ph ph-address-book text-emerald-500 text-lg"></i>
+                                    <span>${m.contact}</span>
+                                </div>
+                            ` : '<span class="text-slate-400 italic text-sm">Contact info unavailable</span>'}
+                        </div>
                     </div>
-                `).join('');
+                `;
 
-                if(members.length === 0) cards = `<div class="col-span-full text-center text-slate-400 py-20 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">Organization chart is being updated.</div>`;
+                // Categorize members
+                const hierarchy = {
+                    line1: [], // Honorary Chairwoman
+                    line2: [], // School Director, Special Assistant
+                    line3: [], // Vice Principals
+                    line4: [], // Academic Heads
+                    others: [] // Everyone else
+                };
+
+                members.forEach(m => {
+                    const r = (m.role || '').toLowerCase();
+                    if (r.includes('honorary chairwoman')) hierarchy.line1.push(m);
+                    else if (r.includes('school director') && !r.includes('assistant')) hierarchy.line2.unshift(m); // Director first
+                    else if (r.includes('special assistant')) hierarchy.line2.push(m); // Assistant second
+                    else if (r.includes('vice principal')) hierarchy.line3.push(m);
+                    else if (r.includes('academic head')) hierarchy.line4.push(m);
+                    else hierarchy.others.push(m);
+                });
+
+                // Function to render a row
+                const renderRow = (list) => {
+                    if (list.length === 0) return '';
+                    return `<div class="flex flex-wrap justify-center gap-10 w-full mb-12">${list.map(m => createCard(m)).join('')}</div>`;
+                };
+
+                let contentHtml = '';
+                if (members.length === 0) {
+                    contentHtml = `<div class="col-span-full text-center text-slate-400 py-20 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">Organization chart is being updated.</div>`;
+                } else {
+                    contentHtml = `
+                        ${renderRow(hierarchy.line1)}
+                        ${renderRow(hierarchy.line2)}
+                        ${renderRow(hierarchy.line3)}
+                        ${renderRow(hierarchy.line4)}
+                        ${renderRow(hierarchy.others)}
+                    `;
+                }
 
                 this.contentArea.innerHTML = `
                     <div class="min-h-full flex flex-col bg-slate-50 fade-in font-sans">
@@ -560,9 +607,12 @@
                             <div class="text-center mb-16">
                                 <h2 class="text-4xl md:text-5xl font-bold text-slate-900 mb-4 font-serif">Administration</h2>
                                 <div class="w-24 h-1.5 bg-gradient-to-r from-blue-500 to-emerald-500 mx-auto rounded-full mb-6"></div>
+                                <p class="text-slate-600 text-lg max-w-2xl mx-auto">Meet the visionary leaders guiding Neerada School towards excellence.</p>
                                 ${canEdit ? `<button onclick="neeradaApp.openAddModal('org_members')" class="mt-8 bg-emerald-600 text-white px-8 py-3 rounded-full text-sm font-bold shadow-lg hover:bg-emerald-700 transition-all flex items-center gap-2 mx-auto"><i class="ph ph-plus text-lg"></i> Add Administrator</button>` : ''}
                             </div>
-                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">${cards}</div>
+                            <div class="flex flex-col items-center">
+                                ${contentHtml}
+                            </div>
                         </div>
                     </div>
                 `;
@@ -947,6 +997,21 @@
                 if(!this.isLoggedIn) { this.navigate('home'); return; }
                 const data = await this.db.getAll(type);
                 this.dataCache = data;
+                
+                // Sorting Logic for Administration in Dashboard Table
+                if (type === 'org_members') {
+                    const getPriority = (role) => {
+                        const r = (role || '').toLowerCase();
+                        if (r.includes('honorary chairwoman')) return 1;
+                        if (r.includes('school director') && !r.includes('assistant')) return 2;
+                        if (r.includes('special assistant')) return 3;
+                        if (r.includes('vice principal')) return 4;
+                        if (r.includes('academic head')) return 5;
+                        return 6;
+                    };
+                    data.sort((a, b) => getPriority(a.role) - getPriority(b.role));
+                }
+
                 const title = type === 'org_members' ? 'Administration' : type.charAt(0).toUpperCase() + type.slice(1);
                 this.ui.renderTable(`Manage ${title}`, cols, data, type);
             }
