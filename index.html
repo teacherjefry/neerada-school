@@ -679,7 +679,13 @@
                     
                     // Find the Drive Link for this specific campus/dept
                     const currentLinkObj = deptLinks.find(l => l.campus === viewState.campus && l.department === viewState.dept);
-                    const driveLink = currentLinkObj ? currentLinkObj.link : '#';
+                    let driveLink = currentLinkObj ? currentLinkObj.link : '#';
+                    
+                    // FIX: Ensure link has protocol so it works even if user pasted "drive.google.com..."
+                    if (driveLink !== '#' && !/^https?:\/\//i.test(driveLink)) {
+                        driveLink = 'https://' + driveLink;
+                    }
+                    
                     const hasLink = !!currentLinkObj;
 
                     let listHtml = '';
@@ -1343,7 +1349,7 @@
                 if (type === 'dept_links') return [
                     { name: 'campus', label: 'Campus', type: 'select', options: ['Sibounheuang', 'Chommany'], value: item.campus || 'Sibounheuang' },
                     { name: 'department', label: 'Department', type: 'select', options: ['Kindergarten', 'Primary', 'Secondary', 'English'], value: item.department || 'Primary' },
-                    { name: 'link', label: 'Drive/Resource URL', type: 'url', value: item.link, required: true }
+                    { name: 'link', label: 'Drive/Resource URL', type: 'text', value: item.link, required: true } // Changed to 'text' to allow lazy pasting
                 ];
                 if (type === 'classes') return [
                     { name: 'name', label: 'Class Name', type: 'text', value: item.name, required: true },
