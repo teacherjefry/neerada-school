@@ -300,10 +300,12 @@
                 }
             }
 
+            // Fixed ADD method: Always remove 'id' before adding to avoid confusion
             async add(collectionName, item) {
                 const ref = collection(db, ...this.basePath, collectionName);
-                if (item.id) delete item.id;
-                await addDoc(ref, item);
+                const dataToSave = { ...item };
+                if (dataToSave.id !== undefined) delete dataToSave.id;
+                await addDoc(ref, dataToSave);
             }
 
             async set(collectionName, docId, data) {
@@ -311,8 +313,10 @@
                 await setDoc(ref, data);
             }
 
+            // Fixed UPDATE method: Throw error if no ID to prevent bad paths
             async update(collectionName, item) {
                 const id = item.id;
+                if (!id) throw new Error("Cannot update: Missing document ID");
                 const data = { ...item };
                 delete data.id; 
                 const ref = doc(db, ...this.basePath, collectionName, id);
@@ -320,6 +324,7 @@
             }
 
             async delete(collectionName, id) {
+                if (!id) throw new Error("Cannot delete: Missing document ID");
                 const ref = doc(db, ...this.basePath, collectionName, id);
                 await deleteDoc(ref);
             }
@@ -379,16 +384,16 @@
             }
 
             renderPublicNavbar() {
-                // Ensure white background for logo
+                // Ensure white background for logo; removed "flower" fallback
                 const logoHtml = neeradaApp.settings.logo ? 
-                    `<div class="bg-white rounded-xl overflow-hidden p-1 shadow-sm"><img src="${neeradaApp.settings.logo}" class="w-10 h-10 object-contain"></div>` : 
+                    `<div class="bg-white rounded-lg p-1 mr-2"><img src="${neeradaApp.settings.logo}" class="w-10 h-10 object-contain"></div>` : 
                     ``;
 
                 return `
                     <nav class="fixed w-full z-50 transition-all duration-300 bg-white/95 backdrop-blur-md border-b border-emerald-100/50 shadow-sm">
                         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                             <div class="flex justify-between items-center h-20 md:h-24">
-                                <div class="flex items-center gap-3 group cursor-pointer" onclick="neeradaApp.navigate('home')">
+                                <div class="flex items-center gap-1 group cursor-pointer" onclick="neeradaApp.navigate('home')">
                                     ${logoHtml}
                                     <div class="flex flex-col">
                                         <span class="font-serif font-bold text-xl md:text-2xl tracking-wide text-slate-800 leading-none">NEERADA</span>
