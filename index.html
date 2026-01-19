@@ -673,34 +673,86 @@
                         </div>
                     `;
                 }
-                // STEP 3: List Teachers (LARGE 3x4 CARDS)
+                // STEP 3: List Teachers (HIERARCHY LINES)
                 else if (viewState.step === 'list') {
                     const filtered = teachers.filter(t => t.campus === viewState.campus && t.department === viewState.dept);
                     
-                    // Find the Drive Link for this specific campus/dept
+                    // Grouping Logic
+                    const groups = {};
+                    
+                    // Initialize keys based on department to ensure correct order
+                    if (viewState.dept === 'Kindergarten') {
+                        groups['1'] = { title: 'Pre-Kindergarten', list: [] };
+                        groups['2'] = { title: 'Kindergarten 1', list: [] };
+                        groups['3'] = { title: 'Kindergarten 2', list: [] };
+                        groups['4'] = { title: 'Kindergarten 3', list: [] };
+                    } else if (viewState.dept === 'Primary') {
+                        groups['11'] = { title: 'Primary 1', list: [] };
+                        groups['12'] = { title: 'Primary 2', list: [] };
+                        groups['13'] = { title: 'Primary 3', list: [] };
+                        groups['14'] = { title: 'Primary 4', list: [] };
+                        groups['15'] = { title: 'Primary 5', list: [] };
+                    } else if (viewState.dept === 'Secondary') {
+                        groups['21'] = { title: 'Secondary 1', list: [] };
+                        groups['22'] = { title: 'Secondary 2', list: [] };
+                        groups['23'] = { title: 'Secondary 3', list: [] };
+                        groups['24'] = { title: 'Secondary 4', list: [] };
+                        groups['25'] = { title: 'Secondary 5', list: [] };
+                        groups['26'] = { title: 'Secondary 6', list: [] };
+                        groups['27'] = { title: 'Secondary 7', list: [] };
+                    }
+                    groups['100'] = { title: 'Faculty', list: [] }; // Fallback
+
+                    // Sort into groups
+                    filtered.forEach(t => {
+                        const rank = neeradaApp.getTeacherRank(t);
+                        if (groups[rank]) {
+                            groups[rank].list.push(t);
+                        } else {
+                            groups['100'].list.push(t);
+                        }
+                    });
+
+                    // Build HTML
+                    let listHtml = '';
+                    let hasTeachers = false;
+
+                    Object.keys(groups).forEach(rank => {
+                        const group = groups[rank];
+                        if (group.list.length > 0) {
+                            hasTeachers = true;
+                            listHtml += `
+                                <div class="w-full mb-12">
+                                    <h3 class="text-xl font-bold text-slate-700 mb-6 text-center border-b border-slate-200 pb-2">${group.title}</h3>
+                                    <div class="flex flex-col items-center">
+                                        <div class="flex flex-wrap justify-center gap-8 w-full">
+                                            ${group.list.map(t => `
+                                                <div onclick="neeradaApp.showTeacherDetails('${t.id}')" class="bg-white rounded-2xl shadow-xl overflow-hidden cursor-pointer p-6 text-center transform hover:-translate-y-1 transition-transform w-full sm:w-[300px]">
+                                                    <div class="w-full h-[320px] mb-6 relative rounded-xl overflow-hidden bg-slate-50 mx-auto">
+                                                        ${t.image ? `<img src="${t.image}" class="w-full h-full object-cover">` : `<div class="w-full h-full flex flex-col items-center justify-center text-slate-400"><i class="ph ph-chalkboard-teacher text-6xl"></i></div>`}
+                                                    </div>
+                                                    <h3 class="font-serif font-bold text-2xl text-slate-900">${t.name}</h3>
+                                                    <p class="text-sm text-slate-500 mt-2 font-medium uppercase tracking-wide">${t.grade_level}</p>
+                                                </div>
+                                            `).join('')}
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        }
+                    });
+
+                    if (!hasTeachers) {
+                        listHtml = `<div class="col-span-full text-center py-20 text-slate-400 bg-white rounded-3xl border-2 border-dashed border-slate-200">No teachers found for this section yet.</div>`;
+                    }
+
+                    // Find Drive Link
                     const currentLinkObj = deptLinks.find(l => l.campus === viewState.campus && l.department === viewState.dept);
                     let driveLink = currentLinkObj ? currentLinkObj.link : '#';
-                    
-                    // FIX: Ensure link has protocol so it works even if user pasted "drive.google.com..."
                     if (driveLink !== '#' && !/^https?:\/\//i.test(driveLink)) {
                         driveLink = 'https://' + driveLink;
                     }
-                    
                     const hasLink = !!currentLinkObj;
-
-                    let listHtml = '';
-                    if (filtered.length === 0) {
-                        listHtml = `<div class="col-span-full text-center py-20 text-slate-400 bg-white rounded-3xl border-2 border-dashed border-slate-200">No teachers found for this section yet.</div>`;
-                    } else {
-                        listHtml = filtered.map(t => `
-                            <div onclick="neeradaApp.showTeacherDetails('${t.id}')" class="bg-white rounded-2xl shadow-xl overflow-hidden cursor-pointer p-6 text-center transform hover:-translate-y-1 transition-transform">
-                                <div class="w-64 h-[320px] mb-6 relative rounded-xl overflow-hidden bg-slate-50 mx-auto">
-                                    ${t.image ? `<img src="${t.image}" class="w-full h-full object-cover">` : `<div class="w-full h-full flex flex-col items-center justify-center text-slate-400"><i class="ph ph-chalkboard-teacher text-6xl"></i></div>`}
-                                </div>
-                                <h3 class="font-serif font-bold text-2xl text-slate-900">${t.name}</h3>
-                            </div>
-                        `).join('');
-                    }
 
                     content = `
                         <div class="max-w-7xl mx-auto">
@@ -710,12 +762,13 @@
                                 <h2 class="text-4xl md:text-5xl font-bold text-slate-900 font-serif">${viewState.dept} Teachers</h2>
                                 <div class="w-24 h-1.5 bg-gradient-to-r from-blue-500 to-emerald-500 mx-auto rounded-full mt-6"></div>
                             </div>
-                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10 justify-items-center mb-16">
+                            
+                            <div class="flex flex-col items-center w-full">
                                 ${listHtml}
                             </div>
                             
                             ${hasLink ? `
-                                <div class="flex justify-center pb-12">
+                                <div class="flex justify-center pb-12 mt-8 border-t border-slate-100 pt-12">
                                     <a href="${driveLink}" target="_blank" class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-lg font-bold py-4 px-10 rounded-full shadow-xl hover:shadow-2xl hover:scale-105 transition-all flex items-center gap-3">
                                         <i class="ph ph-google-drive-logo text-2xl"></i>
                                         Upload Reports / Access Drive
@@ -910,37 +963,7 @@
                 this.mainHeader.style.display = 'flex';
                 this.contentArea.classList.add('p-4', 'md:p-8');
                 this.pageTitle.textContent = "Dashboard";
-                this.contentArea.innerHTML = `
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 fade-in">
-                        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between">
-                            <div><p class="text-slate-500 text-sm font-medium">Students</p><h3 class="text-3xl font-bold text-slate-800 mt-1">${stats.students}</h3></div>
-                            <div class="w-12 h-12 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center"><i class="ph ph-student text-2xl"></i></div>
-                        </div>
-                        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between">
-                            <div><p class="text-slate-500 text-sm font-medium">Teachers</p><h3 class="text-3xl font-bold text-slate-800 mt-1">${stats.teachers}</h3></div>
-                            <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-lg flex items-center justify-center"><i class="ph ph-chalkboard-teacher text-2xl"></i></div>
-                        </div>
-                        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between">
-                            <div><p class="text-slate-500 text-sm font-medium">Staff</p><h3 class="text-3xl font-bold text-slate-800 mt-1">${stats.staff}</h3></div>
-                            <div class="w-12 h-12 bg-orange-100 text-orange-600 rounded-lg flex items-center justify-center"><i class="ph ph-users text-2xl"></i></div>
-                        </div>
-                        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between">
-                            <div><p class="text-slate-500 text-sm font-medium">Classes</p><h3 class="text-3xl font-bold text-slate-800 mt-1">${stats.classes}</h3></div>
-                            <div class="w-12 h-12 bg-purple-100 text-purple-600 rounded-lg flex items-center justify-center"><i class="ph ph-books text-2xl"></i></div>
-                        </div>
-                    </div>
-                    <div class="mt-8 bg-gradient-to-br from-slate-800 to-slate-900 text-white p-8 rounded-xl shadow-lg relative overflow-hidden">
-                         <div class="relative z-10">
-                            <h3 class="text-2xl font-bold mb-2">Welcome Back!</h3>
-                            <p class="text-slate-300 mb-6">Manage data or update the public website content from here.</p>
-                            <div class="flex gap-3">
-                                <button onclick="neeradaApp.navigate('students')" class="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2 rounded-lg text-sm font-medium">Manage Students</button>
-                                <button onclick="neeradaApp.navigate('administration')" class="bg-white/10 hover:bg-white/20 text-white px-5 py-2 rounded-lg text-sm font-medium">Manage Admin</button>
-                                <button onclick="neeradaApp.logout()" class="bg-red-500/20 hover:bg-red-500/40 text-red-100 px-5 py-2 rounded-lg text-sm font-medium">Logout</button>
-                            </div>
-                         </div>
-                    </div>
-                `;
+                this.contentArea.innerHTML = `<div class="grid grid-cols-1 md:grid-cols-4 gap-6 fade-in"><div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between"><div><p class="text-slate-500 text-sm font-medium">Students</p><h3 class="text-3xl font-bold text-slate-800 mt-1">${stats.students}</h3></div><div class="w-12 h-12 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center"><i class="ph ph-student text-2xl"></i></div></div><div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between"><div><p class="text-slate-500 text-sm font-medium">Teachers</p><h3 class="text-3xl font-bold text-slate-800 mt-1">${stats.teachers}</h3></div><div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-lg flex items-center justify-center"><i class="ph ph-chalkboard-teacher text-2xl"></i></div></div><div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between"><div><p class="text-slate-500 text-sm font-medium">Staff</p><h3 class="text-3xl font-bold text-slate-800 mt-1">${stats.staff}</h3></div><div class="w-12 h-12 bg-orange-100 text-orange-600 rounded-lg flex items-center justify-center"><i class="ph ph-users text-2xl"></i></div></div><div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between"><div><p class="text-slate-500 text-sm font-medium">Classes</p><h3 class="text-3xl font-bold text-slate-800 mt-1">${stats.classes}</h3></div><div class="w-12 h-12 bg-purple-100 text-purple-600 rounded-lg flex items-center justify-center"><i class="ph ph-books text-2xl"></i></div></div></div><div class="mt-8 bg-gradient-to-br from-slate-800 to-slate-900 text-white p-8 rounded-xl shadow-lg relative overflow-hidden"><div class="relative z-10"><h3 class="text-2xl font-bold mb-2">Welcome Back!</h3><p class="text-slate-300 mb-6">Manage data or update the public website content from here.</p><div class="flex gap-3"><button onclick="neeradaApp.navigate('students')" class="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2 rounded-lg text-sm font-medium">Manage Students</button><button onclick="neeradaApp.navigate('administration')" class="bg-white/10 hover:bg-white/20 text-white px-5 py-2 rounded-lg text-sm font-medium">Manage Admin</button><button onclick="neeradaApp.logout()" class="bg-red-500/20 hover:bg-red-500/40 text-red-100 px-5 py-2 rounded-lg text-sm font-medium">Logout</button></div></div></div>`;
             }
 
             renderTable(title, columns, data, type) {
@@ -1249,8 +1272,43 @@
                     data.sort((a, b) => getPriority(a.role) - getPriority(b.role));
                 }
 
+                // Sorting Logic for Teachers in Dashboard Table (Hierarchy)
+                if (type === 'teachers') {
+                    data.sort((a, b) => this.getTeacherRank(a) - this.getTeacherRank(b));
+                }
+
                 const title = type === 'org_members' ? 'Administration' : (type === 'dept_links' ? 'Department Links' : type.charAt(0).toUpperCase() + type.slice(1));
                 this.ui.renderTable(`Manage ${title}`, cols, data, type);
+            }
+
+            // Helper to determine sort order for teachers
+            getTeacherRank(t) {
+                const grade = (t.grade_level || '').toLowerCase();
+                const dept = (t.department || '').toLowerCase();
+
+                // Kindergarten Hierarchy
+                if (grade.includes('pre')) return 1;
+                if (grade.includes('kindergarten 1') || (dept.includes('kindergarten') && grade.includes('1'))) return 2;
+                if (grade.includes('kindergarten 2') || (dept.includes('kindergarten') && grade.includes('2'))) return 3;
+                if (grade.includes('kindergarten 3') || (dept.includes('kindergarten') && grade.includes('3'))) return 4;
+
+                // Primary Hierarchy
+                if (grade.includes('primary 1') || (dept.includes('primary') && grade.includes('1'))) return 11;
+                if (grade.includes('primary 2') || (dept.includes('primary') && grade.includes('2'))) return 12;
+                if (grade.includes('primary 3') || (dept.includes('primary') && grade.includes('3'))) return 13;
+                if (grade.includes('primary 4') || (dept.includes('primary') && grade.includes('4'))) return 14;
+                if (grade.includes('primary 5') || (dept.includes('primary') && grade.includes('5'))) return 15;
+
+                // Secondary Hierarchy
+                if (grade.includes('secondary 1') || (dept.includes('secondary') && grade.includes('1'))) return 21;
+                if (grade.includes('secondary 2') || (dept.includes('secondary') && grade.includes('2'))) return 22;
+                if (grade.includes('secondary 3') || (dept.includes('secondary') && grade.includes('3'))) return 23;
+                if (grade.includes('secondary 4') || (dept.includes('secondary') && grade.includes('4'))) return 24;
+                if (grade.includes('secondary 5') || (dept.includes('secondary') && grade.includes('5'))) return 25;
+                if (grade.includes('secondary 6') || (dept.includes('secondary') && grade.includes('6'))) return 26;
+                if (grade.includes('secondary 7') || (dept.includes('secondary') && grade.includes('7'))) return 27;
+
+                return 100; // Default/Others
             }
 
             async previewSettingsLogo(input) {
