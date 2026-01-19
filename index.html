@@ -397,17 +397,17 @@ let firebaseConfig = {
             renderPublicNavbar() {
                 const logoHtml = neeradaApp.settings.logo ? 
                     `<img src="${neeradaApp.settings.logo}" class="w-12 h-12 rounded-xl shadow-lg shadow-emerald-200 group-hover:scale-105 transition-transform object-cover">` : 
-                    `<div class="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-600 via-emerald-500 to-green-400 flex items-center justify-center text-white shadow-lg shadow-emerald-200 group-hover:scale-105 transition-transform"><i class="ph ph-plant text-2xl"></i></div>`;
+                    ``;
 
                 return `
                     <nav class="fixed w-full z-50 transition-all duration-300 bg-white/95 backdrop-blur-md border-b border-emerald-100/50 shadow-sm">
                         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                            <div class="flex justify-between items-center h-24">
+                            <div class="flex justify-between items-center h-20 md:h-24">
                                 <div class="flex items-center gap-3 group cursor-pointer" onclick="neeradaApp.navigate('home')">
                                     ${logoHtml}
                                     <div class="flex flex-col">
-                                        <span class="font-serif font-bold text-2xl tracking-wide text-slate-800 leading-none">NEERADA</span>
-                                        <span class="text-xs font-bold tracking-[0.2em] text-emerald-600 uppercase">School</span>
+                                        <span class="font-serif font-bold text-xl md:text-2xl tracking-wide text-slate-800 leading-none">NEERADA</span>
+                                        <span class="text-[10px] md:text-xs font-bold tracking-[0.2em] text-emerald-600 uppercase">School</span>
                                     </div>
                                 </div>
                                 
@@ -421,25 +421,20 @@ let firebaseConfig = {
                                 </div>
 
                                 <div class="flex items-center gap-4">
-                                    <button onclick="neeradaApp.login()" class="hidden md:block bg-slate-900 hover:bg-emerald-600 text-white px-8 py-3 rounded-full text-sm font-medium transition-all shadow-xl hover:shadow-emerald-500/30 transform hover:-translate-y-0.5">
+                                    <button onclick="neeradaApp.login()" class="bg-slate-900 hover:bg-emerald-600 text-white px-4 md:px-8 py-2 md:py-3 rounded-full text-xs md:text-sm font-medium transition-all shadow-xl hover:shadow-emerald-500/30 transform hover:-translate-y-0.5">
                                         ${neeradaApp.isLoggedIn ? 'Dashboard' : 'Login'}
-                                    </button>
-                                    <!-- Mobile Menu Button -->
-                                    <button onclick="neeradaApp.togglePublicMenu()" class="md:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg">
-                                        <i class="ph ph-list text-2xl"></i>
                                     </button>
                                 </div>
                             </div>
-                        </div>
-                        
-                        <!-- Mobile Menu Dropdown -->
-                        <div id="public-mobile-menu" class="hidden absolute top-24 left-0 w-full bg-white border-t border-slate-100 shadow-xl py-4 px-6 flex flex-col gap-4 md:hidden">
-                            <button onclick="neeradaApp.navigate('home')" class="text-left font-semibold text-slate-600 py-2 border-b border-slate-50">Home</button>
-                            <button onclick="neeradaApp.navigate('public-admin')" class="text-left font-semibold text-slate-600 py-2 border-b border-slate-50">Administration</button>
-                            <button onclick="neeradaApp.navigate('public-teachers')" class="text-left font-semibold text-slate-600 py-2 border-b border-slate-50">Teachers</button>
-                            <button onclick="neeradaApp.navigate('public-staff')" class="text-left font-semibold text-slate-600 py-2 border-b border-slate-50">Staff</button>
-                            <button onclick="neeradaApp.navigate('public-students')" class="text-left font-semibold text-slate-600 py-2 border-b border-slate-50">Students</button>
-                            <button onclick="neeradaApp.login()" class="mt-2 bg-slate-900 text-white py-3 rounded-lg font-bold">${neeradaApp.isLoggedIn ? 'Go to Dashboard' : 'Login'}</button>
+                            
+                            <!-- Mobile Navigation Tabs (Scrollable) -->
+                            <div class="md:hidden overflow-x-auto hide-scrollbar pb-3 -mx-4 px-4 flex gap-6 text-sm font-medium text-slate-600 border-t border-slate-100 pt-3">
+                                <button onclick="neeradaApp.navigate('home')" class="whitespace-nowrap hover:text-emerald-600 flex-shrink-0">Home</button>
+                                <button onclick="neeradaApp.navigate('public-admin')" class="whitespace-nowrap hover:text-emerald-600 flex-shrink-0">Administration</button>
+                                <button onclick="neeradaApp.navigate('public-teachers')" class="whitespace-nowrap hover:text-emerald-600 flex-shrink-0">Teachers</button>
+                                <button onclick="neeradaApp.navigate('public-staff')" class="whitespace-nowrap hover:text-emerald-600 flex-shrink-0">Staff</button>
+                                <button onclick="neeradaApp.navigate('public-students')" class="whitespace-nowrap hover:text-emerald-600 flex-shrink-0">Students</button>
+                            </div>
                         </div>
                     </nav>
                 `;
