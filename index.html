@@ -996,8 +996,10 @@
                 const item = list.find(i => i.id === id);
                 if(!item) return;
                 const fields = this.getFieldsFor(type, item);
-                fields.push({ name: 'id', label: '', type: 'hidden', value: item.id });
+                // Explicitly relying on closure 'id' variable is safer than hidden fields for updates
+                
                 this.ui.openModal(`Edit ${type === 'org_members' ? 'Admin' : type.slice(0, -1)}`, fields, async (data) => {
+                    data.id = id; // FIX: Explicitly set ID to prevent 'missing document ID' error
                     await this.db.update(type, data);
                     this.ui.showToast('Updated successfully', 'success');
                      if(this.currentView === 'public-admin' && type === 'org_members') this.navigate('public-admin');
