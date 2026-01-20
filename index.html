@@ -1222,14 +1222,25 @@
                         </tr>`).join('');
 
                 const showManageLinksBtn = type === 'teachers' ? 
-                    `<button onclick="neeradaApp.navigate('dept_links')" class="bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 ml-auto mr-2"><i class="ph ph-link text-lg"></i> Manage Drive Links</button>` : '';
+                    `<button onclick="neeradaApp.navigate('dept_links')" class="bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 mr-2"><i class="ph ph-link text-lg"></i> Links</button>` : '';
+
+                const showCSVButtons = ['students', 'teachers', 'staff', 'org_members', 'classes'].includes(type) ? `
+                    <div class="flex gap-2 mr-2">
+                        <button onclick="neeradaApp.downloadCSVTemplate('${type}')" class="bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 px-3 py-2 rounded-lg text-sm font-medium" title="Download CSV Template"><i class="ph ph-download-simple text-lg"></i></button>
+                        <button onclick="document.getElementById('csv-upload-${type}').click()" class="bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-2"><i class="ph ph-upload-simple text-lg"></i> Import CSV</button>
+                        <input type="file" id="csv-upload-${type}" class="hidden" accept=".csv" onchange="neeradaApp.handleCSVUpload('${type}', this)">
+                    </div>
+                ` : '';
 
                 this.contentArea.innerHTML = `
                     <div class="bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col fade-in">
-                        <div class="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50 rounded-t-xl">
+                        <div class="p-4 border-b border-slate-200 flex flex-wrap justify-between items-center bg-slate-50 rounded-t-xl gap-2">
                             <input type="text" placeholder="Search..." class="pl-4 pr-4 py-2 border border-slate-300 rounded-lg text-sm w-64" onkeyup="neeradaApp.filterTable(this.value)">
-                            ${showManageLinksBtn}
-                            <button onclick="neeradaApp.openAddModal('${type}')" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2"><i class="ph ph-plus-circle text-lg"></i> Add New</button>
+                            <div class="flex items-center ml-auto">
+                                ${showManageLinksBtn}
+                                ${showCSVButtons}
+                                <button onclick="neeradaApp.openAddModal('${type}')" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2"><i class="ph ph-plus-circle text-lg"></i> Add New</button>
+                            </div>
                         </div>
                         <div class="overflow-x-auto"><table class="min-w-full"><thead class="bg-slate-50 border-b border-slate-200"><tr>${columns.map(c => `<th class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase">${c.label}</th>`).join('')}<th class="px-6 py-3 text-right text-xs font-semibold text-slate-500 uppercase">Actions</th></tr></thead><tbody class="bg-white divide-y divide-slate-100">${rowsHtml}</tbody></table></div>
                     </div>
@@ -1376,6 +1387,7 @@
                         this.settings = settingsDocs[0];
                     }
                     this.ui.updateLogo(this.settings.logo);
+                    this.ui.updateFavicon(this.settings.favicon);
                     this.navigate(this.isLoggedIn ? 'dashboard' : 'home');
                     const dEl = $('#current-date');
                     if(dEl) dEl.textContent = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
@@ -1542,6 +1554,61 @@
                 return 100; // Default/Others
             }
 
+            downloadCSVTemplate(type) {
+                const templates = {
+                    students: 'name,grade,campus,department,school_year,section,phone',
+                    teachers: 'name,grade_level,section,campus,department,email,phone',
+                    staff: 'name,role,contact',
+                    org_members: 'name,role,contact',
+                    classes: 'name,room,schedule'
+                };
+                const content = templates[type];
+                if(!content) return;
+                
+                const blob = new Blob([content], { type: 'text/csv' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${type}_template.csv`;
+                a.click();
+                window.URL.revokeObjectURL(url);
+            }
+
+            async handleCSVUpload(type, input) {
+                if (!input.files || !input.files[0]) return;
+                const file = input.files[0];
+                const reader = new FileReader();
+                
+                reader.onload = async (e) => {
+                    const text = e.target.result;
+                    const rows = text.split('\n').map(r => r.trim()).filter(r => r);
+                    if (rows.length < 2) { alert("Invalid CSV format"); return; }
+                    
+                    const headers = rows[0].split(',').map(h => h.trim());
+                    const data = [];
+                    
+                    for (let i = 1; i < rows.length; i++) {
+                        const values = rows[i].split(',').map(v => v.trim());
+                        if (values.length !== headers.length) continue; // Skip malformed rows
+                        const obj = {};
+                        headers.forEach((h, index) => obj[h] = values[index]);
+                        data.push(obj);
+                    }
+                    
+                    if (confirm(`Ready to import ${data.length} records into ${type}?`)) {
+                        let count = 0;
+                        for (const item of data) {
+                            await this.db.add(type, item);
+                            count++;
+                        }
+                        this.ui.showToast(`Imported ${count} records`, 'success');
+                        this.navigate(this.currentView); // Refresh
+                    }
+                };
+                reader.readAsText(file);
+                input.value = ''; // Reset
+            }
+
             async previewSettingsLogo(input) {
                 if (input.files && input.files[0]) {
                     try {
@@ -1687,7 +1754,7 @@
                     { name: 'campus', label: 'Campus', type: 'select', options: ['Sibounheuang', 'Chommany'], value: item.campus || 'Sibounheuang' },
                     { name: 'department', label: 'Department', type: 'select', options: ['Kindergarten', 'Primary', 'Secondary', 'English'], value: item.department || 'Primary' },
                     { name: 'school_year', label: 'School Year (e.g., 2024-2025)', type: 'text', value: item.school_year || '2024-2025', required: true },
-                    { name: 'parent', label: 'Parent Name', type: 'text', value: item.parent, required: true },
+                    { name: 'section', label: 'Classroom/Section', type: 'text', value: item.section, required: true },
                     { name: 'phone', label: 'Phone', type: 'tel', value: item.phone, required: true }
                 ];
                 if (type === 'teachers') return [
