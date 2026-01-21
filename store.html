@@ -118,7 +118,8 @@
             async seedDefaults(products) {
                 if (!this.db) await this.init();
                 const transaction = this.db.transaction(['products'], 'readwrite');
-                const store = transaction.objectStore(products);
+                // FIX: Used to pass 'products' array variable instead of string 'products'
+                const store = transaction.objectStore('products'); 
                 
                 // We do this sequentially to keep it simple
                 for (const product of products) {
@@ -859,12 +860,22 @@
             const [loading, setLoading] = useState(true);
             const [isSeeding, setIsSeeding] = useState(false);
             const [dataTick, setDataTick] = useState(0); // Used to trigger re-fetches
+            const hasAutoSeeded = useRef(false);
 
             // Refresh data whenever dataTick changes
             useEffect(() => {
                 const loadData = async () => {
                     try {
-                        const prods = await storeDB.getAll('products');
+                        let prods = await storeDB.getAll('products');
+                        
+                        // FIX: Auto-populate if empty and hasn't seeded yet this session
+                        if (prods.length === 0 && !hasAutoSeeded.current) {
+                             console.log("Auto-seeding defaults...");
+                             hasAutoSeeded.current = true;
+                             await storeDB.seedDefaults(DEFAULT_PRODUCTS);
+                             prods = await storeDB.getAll('products');
+                        }
+
                         prods.sort((a, b) => b.createdAt - a.createdAt);
                         setProducts(prods);
 
