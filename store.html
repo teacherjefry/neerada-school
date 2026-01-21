@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neerada Store</title>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Lucide Icons (Development Version for Browser) -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        /* Custom scrollbar for a cleaner look */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8; 
+        }
+        .font-serif {
+            font-family: 'Georgia', 'Cambria', 'Times New Roman', Times, serif;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // --- IndexedDB Wrapper Class ---
+        class StoreDB {
+            constructor() {
+                this.dbName = 'NeeradaStoreDB';
+                this.version = 1;
+                this.db = null;
+            }
+
+            async init() {
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open(this.dbName, this.version);
+
+                    request.onupgradeneeded = (event) => {
+                        const db = event.target.result;
+                        if (!db.objectStoreNames.contains('products')) {
+                            const productStore = db.createObjectStore('products', { keyPath: 'id', autoIncrement: true });
+                            productStore.createIndex('createdAt', 'createdAt', { unique: false });
+                        }
+                        if (!db.objectStoreNames.contains('sales')) {
+                            const salesStore = db.createObjectStore('sales', { keyPath: 'id', autoIncrement: true });
+                            salesStore.createIndex('timestamp', 'timestamp', { unique: false });
+                        }
+                    };
+
+                    request.onsuccess = (event) => {
+                        this.db = event.target.result;
+                        resolve(this.db);
+                    };
+
+                    request.onerror = (event) => {
+                        reject('IndexedDB error: ' + event.target.error);
+                    };
+                });
+            }
+
+            async getAll(storeName) {
+                if (!this.db) await this.init();
+                return new Promise((resolve, reject) => {
+                    const transaction = this.db.transaction([storeName], 'readonly');
+                    const store = transaction.objectStore(storeName);
+                    const request = store.getAll();
+
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject(request.error);
+                });
+            }
+
+            async add(storeName, item) {
+                if (!this.db) await this.init();
+                return new Promise((resolve, reject) => {
+                    const transaction = this.db.transaction([storeName], 'readwrite');
+                    const store = transaction.objectStore(storeName);
+                    const request = store.add(item);
+
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject(request.error);
+                });
+            }
+
+            async delete(storeName, id) {
+                if (!this.db) await this.init();
+                return new Promise((resolve, reject) => {
+                    const transaction = this.db.transaction([storeName], 'readwrite');
+                    const store = transaction.objectStore(storeName);
+                    const request = store.delete(id);
+
+                    request.onsuccess = () => resolve(true);
+                    request.onerror = () => reject(request.error);
+                });
+            }
+
+            async seedDefaults(products) {
+                if (!this.db) await this.init();
+                const transaction = this.db.transaction(['products'], 'readwrite');
+                const store = transaction.objectStore(products);
+                
+                // We do this sequentially to keep it simple
+                for (const product of products) {
+                    store.add({
+                        ...product,
+                        createdAt: new Date().getTime()
+                    });
+                }
+                
+                return new Promise((resolve, reject) => {
+                    transaction.oncomplete = () => resolve();
+                    transaction.onerror = () => reject(transaction.error);
+                });
+            }
+        }
+
+        const storeDB = new StoreDB();
+
+        // --- Icon Component Wrapper ---
+        // Since we are using Lucide global, we create a small wrapper to render SVGs
+        const Icon = ({ name, size = 24, className = "" }) => {
+            const iconRef = useRef(null);
+
+            useEffect(() => {
+                if (window.lucide) {
+                    window.lucide.createIcons({
+                        root: iconRef.current,
+                        name: name,
+                        attrs: {
+                            width: size,
+                            height: size,
+                            class: className
+                        }
+                    });
+                }
+            }, [name, size, className]);
+
+            // Lucide replaces the element, so we provide a container
+            return <span ref={iconRef} data-lucide={name} className={className}></span>;
+        };
+
+
+        // --- Default Data ---
+        const DEFAULT_PRODUCTS = [
+            // Soft Drinks
+            { name: "Cola Original 330ml", price: 5000, category: "Drinks", imageUrl: "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?auto=format&fit=crop&q=80" },
+            { name: "Orange Fizz 330ml", price: 5000, category: "Drinks", imageUrl: "https://images.unsplash.com/photo-1625772299848-391b6a87d7b3?auto=format&fit=crop&q=80" },
+            { name: "Lemon Sparkle 330ml", price: 5000, category: "Drinks", imageUrl: "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&q=80" },
+            { name: "Power Energy Drink", price: 8000, category: "Drinks", imageUrl: "https://images.unsplash.com/photo-1622543925917-095a1460595d?auto=format&fit=crop&q=80" },
+            // Water
+            { name: "Mineral Water Small (330ml)", price: 3000, category: "Drinks", imageUrl: "https://images.unsplash.com/photo-1560023907-5f339617ea30?auto=format&fit=crop&q=80" },
+            { name: "Mineral Water Medium (600ml)", price: 5000, category: "Drinks", imageUrl: "https://images.unsplash.com/photo-1523362628745-0c100150b504?auto=format&fit=crop&q=80" },
+            { name: "Mineral Water Large (1.5L)", price: 8000, category: "Drinks", imageUrl: "https://images.unsplash.com/photo-1548839140-29a749e1cf4d?auto=format&fit=crop&q=80" },
+            // Candies
+            { name: "Milk Chocolate Bar", price: 10000, category: "Candies", imageUrl: "https://images.unsplash.com/photo-1511381939415-e44015466834?auto=format&fit=crop&q=80" },
+            { name: "Fruity Gummy Bears", price: 5000, category: "Candies", imageUrl: "https://images.unsplash.com/photo-1582058091505-f87a2e55a40f?auto=format&fit=crop&q=80" },
+            { name: "Rainbow Lollipops", price: 2000, category: "Candies", imageUrl: "https://images.unsplash.com/photo-1575224300306-1b8da9b40713?auto=format&fit=crop&q=80" },
+            { name: "Mint Chews", price: 3000, category: "Candies", imageUrl: "https://images.unsplash.com/photo-1581798434978-41079b73c9f2?auto=format&fit=crop&q=80" },
+            { name: "Sour Fruit Drops", price: 4000, category: "Candies", imageUrl: "https://images.unsplash.com/photo-1499195333224-3ce974eecb47?auto=format&fit=crop&q=80" },
+            // Snacks
+            { name: "Classic Potato Chips", price: 8000, category: "Snacks", imageUrl: "https://images.unsplash.com/photo-1566478989037-eec170784d0b?auto=format&fit=crop&q=80" },
+            { name: "Spicy Peanuts", price: 5000, category: "Snacks", imageUrl: "https://images.unsplash.com/photo-1621939514649-28b5fe2f88ae?auto=format&fit=crop&q=80" },
+            { name: "Crispy Seaweed", price: 4000, category: "Snacks", imageUrl: "https://images.unsplash.com/photo-1606914502283-a75d1d6a3628?auto=format&fit=crop&q=80" },
+            { name: "Japanese Rice Crackers", price: 12000, category: "Snacks", imageUrl: "https://images.unsplash.com/photo-1597405232770-5b3252a1212c?auto=format&fit=crop&q=80" },
+            { name: "Butter Popcorn", price: 10000, category: "Snacks", imageUrl: "https://images.unsplash.com/photo-1578849278619-e73505e9610f?auto=format&fit=crop&q=80" },
+            { name: "Roasted Sunflower Seeds", price: 5000, category: "Snacks", imageUrl: "https://images.unsplash.com/photo-1516629994968-3e28498f3ce5?auto=format&fit=crop&q=80" },
+            { name: "Dried Mango Slices", price: 15000, category: "Snacks", imageUrl: "https://images.unsplash.com/photo-1621506289937-a8e4df240d0b?auto=format&fit=crop&q=80" },
+            { name: "Choco Biscuit Sticks", price: 6000, category: "Snacks", imageUrl: "https://images.unsplash.com/photo-1558961363-500ac6317940?auto=format&fit=crop&q=80" },
+            // Ice Cream
+            { name: "Vanilla Cone", price: 8000, category: "Ice Cream", imageUrl: "https://images.unsplash.com/photo-1560008581-09826d1de69e?auto=format&fit=crop&q=80" },
+            { name: "Chocolate Crunch Stick", price: 10000, category: "Ice Cream", imageUrl: "https://images.unsplash.com/photo-1497034825429-c343d7c6a68f?auto=format&fit=crop&q=80" },
+            { name: "Strawberry Cup", price: 6000, category: "Ice Cream", imageUrl: "https://images.unsplash.com/photo-1497034825429-c343d7c6a68f?auto=format&fit=crop&q=80" },
+            { name: "Taro Milk Bar", price: 5000, category: "Ice Cream", imageUrl: "https://images.unsplash.com/photo-1558210834-473f430c09ac?auto=format&fit=crop&q=80" },
+            { name: "Mango Sherbet Bar", price: 5000, category: "Ice Cream", imageUrl: "https://images.unsplash.com/photo-1488900128323-21503983a07e?auto=format&fit=crop&q=80" }
+        ];
+
+        // --- Helper Components ---
+        const Navigation = ({ currentView, setView, isAdmin, setIsAdmin }) => {
+            const [isOpen, setIsOpen] = useState(false);
+
+            const navItems = [
+                { id: 'home', label: 'Home', icon: 'store' },
+                { id: 'products', label: 'Products', icon: 'shopping-bag' },
+            ];
+
+            return (
+                <nav className="bg-white shadow-md sticky top-0 z-50">
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <div className="flex justify-between h-16">
+                            <div className="flex items-center">
+                                <div className="flex-shrink-0 flex items-center gap-2 cursor-pointer" onClick={() => setView('home')}>
+                                    <div className="bg-blue-600 p-2 rounded-lg flex items-center justify-center">
+                                        <Icon name="store" className="text-white" size={24} />
+                                    </div>
+                                    <span className="font-bold text-xl text-blue-900 tracking-tight">Neerada Store</span>
+                                </div>
+                            </div>
+                            
+                            {/* Desktop Menu */}
+                            <div className="hidden md:flex items-center space-x-4">
+                                {navItems.map((item) => (
+                                    <button
+                                        key={item.id}
+                                        onClick={() => setView(item.id)}
+                                        className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                                            currentView === item.id 
+                                                ? 'text-blue-600 bg-blue-50' 
+                                                : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                                        }`}
+                                    >
+                                        <Icon name={item.icon} size={20} />
+                                        {item.label}
+                                    </button>
+                                ))}
+                                
+                                {isAdmin ? (
+                                    <button
+                                        onClick={() => setView('admin')}
+                                        className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                                            currentView === 'admin' 
+                                                ? 'text-purple-600 bg-purple-50' 
+                                                : 'text-gray-600 hover:text-purple-600 hover:bg-gray-50'
+                                        }`}
+                                    >
+                                        <Icon name="trending-up" size={20} />
+                                        Dashboard
+                                    </button>
+                                ) : (
+                                    <button
+                                        onClick={() => setView('login')}
+                                        className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium text-white bg-gray-800 hover:bg-gray-900 transition-colors shadow-sm"
+                                    >
+                                        <Icon name="lock" size={16} />
+                                        Admin
+                                    </button>
+                                )}
+                                
+                                {isAdmin && (
+                                    <button
+                                        onClick={() => {
+                                            setIsAdmin(false);
+                                            setView('home');
+                                        }}
+                                        className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                                        title="Logout Admin"
+                                    >
+                                        <Icon name="log-out" size={20} />
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* Mobile menu button */}
+                            <div className="md:hidden flex items-center">
+                                <button
+                                    onClick={() => setIsOpen(!isOpen)}
+                                    className="p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none"
+                                >
+                                    <Icon name={isOpen ? "x" : "menu"} size={24} />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Mobile Menu */}
+                    {isOpen && (
+                        <div className="md:hidden bg-white border-t border-gray-100">
+                            <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
+                                {navItems.map((item) => (
+                                    <button
+                                        key={item.id}
+                                        onClick={() => {
+                                            setView(item.id);
+                                            setIsOpen(false);
+                                        }}
+                                        className={`flex items-center gap-3 w-full px-3 py-3 rounded-md text-base font-medium ${
+                                            currentView === item.id 
+                                                ? 'text-blue-600 bg-blue-50' 
+                                                : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                                        }`}
+                                    >
+                                        <Icon name={item.icon} size={20} />
+                                        {item.label}
+                                    </button>
+                                ))}
+                                {isAdmin ? (
+                                    <>
+                                        <button
+                                            onClick={() => {
+                                                setView('admin');
+                                                setIsOpen(false);
+                                            }}
+                                            className="flex items-center gap-3 w-full px-3 py-3 rounded-md text-base font-medium text-purple-600 bg-purple-50"
+                                        >
+                                            <Icon name="trending-up" size={20} />
+                                            Dashboard
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setIsAdmin(false);
+                                                setView('home');
+                                                setIsOpen(false);
+                                            }}
+                                            className="flex items-center gap-3 w-full px-3 py-3 rounded-md text-base font-medium text-red-500 hover:bg-red-50"
+                                        >
+                                            <Icon name="log-out" size={20} />
+                                            Exit Admin
+                                        </button>
+                                    </>
+                                ) : (
+                                    <button
+                                        onClick={() => {
+                                            setView('login');
+                                            setIsOpen(false);
+                                        }}
+                                        className="flex items-center gap-3 w-full px-3 py-3 rounded-md text-base font-medium text-gray-800 hover:bg-gray-100"
+                                    >
+                                        <Icon name="lock" size={20} />
+                                        Admin Login
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </nav>
+            );
+        };
+
+        const formatCurrency = (amount) => {
+            return new Intl.NumberFormat('en-US', { 
+                style: 'decimal', 
+                minimumFractionDigits: 0 
+            }).format(amount) + ' LAK';
+        };
+
+        const HomeView = ({ setView }) => (
+            <div className="flex flex-col min-h-screen bg-[#FDFBF7]">
+                {/* Hero Section */}
+                <div className="relative h-[85vh] flex items-center justify-center overflow-hidden">
+                    <div className="absolute inset-0">
+                        <img 
+                            src="https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80" 
+                            alt="Aesthetic Store Background" 
+                            className="w-full h-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-transparent"></div>
+                    </div>
+                    
+                    <div className="relative z-10 text-center px-4 max-w-5xl mx-auto flex flex-col items-center">
+                        <h1 className="text-6xl md:text-9xl font-serif text-white mb-6 tracking-tight drop-shadow-xl font-medium italic">
+                            Neerada Store
+                        </h1>
+                        <div className="w-24 h-1 bg-white/80 rounded-full mb-8"></div>
+                        <p className="text-xl md:text-2xl text-white/90 max-w-2xl mb-12 font-light tracking-widest uppercase">
+                            Curated essentials • Sweet delights • Daily joy
+                        </p>
+                        <button 
+                            onClick={() => setView('products')}
+                            className="bg-white/10 backdrop-blur-md border border-white/40 text-white hover:bg-white hover:text-black font-medium py-4 px-12 rounded-full transition-all duration-300 transform hover:scale-105 tracking-widest text-sm uppercase"
+                        >
+                            Explore Collection
+                        </button>
+                    </div>
+                </div>
+
+                {/* Aesthetic Quote Section 1 */}
+                <div className="max-w-7xl mx-auto px-4 py-24 sm:px-6 lg:px-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
+                        <div className="order-2 md:order-1 space-y-8">
+                            <div className="w-12 h-1 bg-orange-400"></div>
+                            <h2 className="text-4xl md:text-5xl font-serif text-gray-800 leading-tight">
+                                "The secret ingredient is always love, and maybe a little bit of chocolate."
+                            </h2>
+                            <p className="text-gray-500 font-light leading-relaxed text-lg">
+                                Step into a world where every snack tells a story. From nostalgic local treats to premium imported delights, we handpick our shelves to bring a spark of sweetness to your daily routine.
+                            </p>
+                        </div>
+                        <div className="order-1 md:order-2 relative">
+                            <div className="absolute inset-0 bg-orange-200 rounded-[3rem] transform rotate-3 scale-95 opacity-50"></div>
+                            <img 
+                                src="https://images.unsplash.com/photo-1582058091505-f87a2e55a40f?auto=format&fit=crop&q=80"
+                                alt="Sweet delights" 
+                                className="relative w-full h-[600px] object-cover rounded-[3rem] shadow-2xl z-10"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                {/* Categories Cards */}
+                <div className="bg-white py-24 border-y border-gray-100">
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <div className="text-center mb-16">
+                            <h2 className="text-3xl font-serif text-gray-800 italic">Curated for You</h2>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
+                            <div className="group bg-[#FAFAFA] p-10 rounded-3xl hover:bg-[#FFF5F5] transition-colors duration-500 text-center cursor-pointer">
+                                <div className="bg-white w-20 h-20 mx-auto rounded-full shadow-sm flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                                    <Icon name="ice-cream" className="text-pink-400" size={32} />
+                                </div>
+                                <h3 className="text-xl font-serif text-gray-900 mb-3">Sweets & Treats</h3>
+                                <p className="text-gray-500 font-light text-sm">Indulge in our collection of candies and frozen delights.</p>
+                            </div>
+                            
+                            <div className="group bg-[#FAFAFA] p-10 rounded-3xl hover:bg-[#F0F9FF] transition-colors duration-500 text-center cursor-pointer">
+                                <div className="bg-white w-20 h-20 mx-auto rounded-full shadow-sm flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                                    <Icon name="coffee" className="text-blue-400" size={32} />
+                                </div>
+                                <h3 className="text-xl font-serif text-gray-900 mb-3">Refreshments</h3>
+                                <p className="text-gray-500 font-light text-sm">Cold drinks to quench your thirst and lift your spirits.</p>
+                            </div>
+                            
+                            <div className="group bg-[#FAFAFA] p-10 rounded-3xl hover:bg-[#F0FFF4] transition-colors duration-500 text-center cursor-pointer">
+                                <div className="bg-white w-20 h-20 mx-auto rounded-full shadow-sm flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                                    <Icon name="utensils" className="text-green-400" size={32} />
+                                </div>
+                                <h3 className="text-xl font-serif text-gray-900 mb-3">Daily Essentials</h3>
+                                <p className="text-gray-500 font-light text-sm">Everything you need for a comfortable home.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Aesthetic Quote Section 2 */}
+                <div className="max-w-7xl mx-auto px-4 py-24 sm:px-6 lg:px-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
+                        <div className="relative">
+                            <div className="absolute inset-0 bg-blue-100 rounded-[3rem] transform -rotate-2 scale-95 opacity-50"></div>
+                            <img 
+                                src="https://images.unsplash.com/photo-1623659248879-2b9745c18e47?auto=format&fit=crop&q=80"
+                                alt="Refreshment" 
+                                className="relative w-full h-[600px] object-cover rounded-[3rem] shadow-xl z-10"
+                            />
+                        </div>
+                        <div className="space-y-8 pl-8">
+                            <div className="w-12 h-1 bg-blue-400"></div>
+                            <blockquote className="text-4xl md:text-5xl font-serif text-gray-800 italic leading-tight">
+                                "Simple pleasures are the last refuge of the complex."
+                            </blockquote>
+                            <p className="text-gray-500 text-lg font-light leading-relaxed">
+                                Whether it's an ice-cold soda on a sunny afternoon or the perfect snack for your movie night, we believe the small things make the biggest difference.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+
+        const ProductsView = ({ products, recordSale, loading, seedDatabase, isSeeding }) => (
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+                <div className="flex justify-between items-center mb-8">
+                    <h2 className="text-3xl font-bold text-gray-900">Our Products</h2>
+                </div>
+                
+                {loading ? (
+                    <div className="flex justify-center py-20">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                    </div>
+                ) : products.length === 0 ? (
+                    <div className="text-center py-20 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+                        <div className="mx-auto h-12 w-12 flex justify-center items-center text-gray-400">
+                           <Icon name="shopping-bag" size={48} />
+                        </div>
+                        <h3 className="mt-2 text-sm font-medium text-gray-900">No products available</h3>
+                        <p className="mt-2 text-sm text-gray-500 max-w-md mx-auto">
+                            The shelves are currently empty. You can instantly populate the store with our default collection of drinks, snacks, and treats.
+                        </p>
+                        <button
+                            onClick={seedDatabase}
+                            disabled={isSeeding}
+                            className="mt-6 inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-full font-medium transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {isSeeding ? (
+                                <>
+                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                    Adding Products...
+                                </>
+                            ) : (
+                                <>
+                                    <Icon name="refresh-cw" size={18} />
+                                    Populate Store with Defaults
+                                </>
+                            )}
+                        </button>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                        {products.map((product) => (
+                            <div key={product.id} className="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-200 overflow-hidden border border-gray-100 flex flex-col">
+                                <div className="aspect-w-1 aspect-h-1 w-full overflow-hidden bg-gray-200 h-48 relative">
+                                    {product.imageUrl ? (
+                                        <img 
+                                            src={product.imageUrl} 
+                                            alt={product.name} 
+                                            className="w-full h-full object-cover transform hover:scale-105 transition-transform duration-500"
+                                            onError={(e) => {
+                                                e.target.onerror = null; 
+                                                e.target.src = 'https://via.placeholder.com/300?text=Neerada+Store';
+                                            }}
+                                        />
+                                    ) : (
+                                        <div className="flex items-center justify-center h-full bg-gray-100 text-gray-400">
+                                            <Icon name="image" size={48} />
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="p-4 flex flex-col flex-grow">
+                                    <h3 className="text-lg font-semibold text-gray-900 line-clamp-2 mb-1">{product.name}</h3>
+                                    <p className="text-sm text-gray-500 mb-4 capitalize">{product.category}</p>
+                                    <div className="mt-auto flex items-center justify-between">
+                                        <span className="text-xl font-bold text-blue-600">{formatCurrency(product.price)}</span>
+                                        <button
+                                            onClick={() => recordSale(product)}
+                                            className="p-2 bg-blue-100 text-blue-600 rounded-full hover:bg-blue-600 hover:text-white transition-colors flex items-center justify-center"
+                                            title="Buy (Record Sale)"
+                                        >
+                                            <Icon name="plus" size={20} />
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+        );
+
+        const AdminLogin = ({ onLogin }) => {
+            const [password, setPassword] = useState('');
+            const [error, setError] = useState('');
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                if (password === 'neerada123') {
+                    onLogin();
+                } else {
+                    setError('Incorrect password');
+                }
+            };
+
+            return (
+                <div className="min-h-[80vh] flex items-center justify-center bg-gray-50 px-4">
+                    <div className="max-w-md w-full space-y-8 bg-white p-10 rounded-2xl shadow-xl">
+                        <div className="text-center">
+                            <div className="bg-blue-100 p-3 rounded-full inline-flex mb-4">
+                                <Icon name="lock" className="h-8 w-8 text-blue-600" />
+                            </div>
+                            <h2 className="text-3xl font-extrabold text-gray-900">Admin Access</h2>
+                            <p className="mt-2 text-sm text-gray-600">Enter your store password to continue.</p>
+                        </div>
+                        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+                            <div>
+                                <label htmlFor="password" class="sr-only">Password</label>
+                                <input
+                                    id="password"
+                                    name="password"
+                                    type="password"
+                                    required
+                                    className="appearance-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                                    placeholder="Store Password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                />
+                            </div>
+                            {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+                            <button
+                                type="submit"
+                                className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 shadow-md transition-all"
+                            >
+                                Sign in to Dashboard
+                            </button>
+                        </form>
+                        <div className="text-center mt-4">
+                            <span className="text-xs text-gray-400">Demo Password: neerada123</span>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const AdminDashboard = ({ products, deleteProduct, sales, addProduct, seedDatabase }) => {
+            const [newProduct, setNewProduct] = useState({ name: '', price: '', category: 'General', image: null });
+            const [isSubmitting, setIsSubmitting] = useState(false);
+            const [isSeeding, setIsSeeding] = useState(false);
+            const fileInputRef = useRef(null);
+
+            const handleImageChange = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    // Larger limit for local indexedDB is fine, but keeping reasonable for performance
+                    if (file.size > 2000000) { 
+                        alert("File is too large! Please use an image under 2MB.");
+                        return;
+                    }
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        setNewProduct({ ...newProduct, image: reader.result });
+                    };
+                    reader.readAsDataURL(file);
+                }
+            };
+
+            const handleAddProduct = async (e) => {
+                e.preventDefault();
+                if (!newProduct.name || !newProduct.price) return;
+                
+                setIsSubmitting(true);
+                await addProduct({
+                    name: newProduct.name,
+                    price: Number(newProduct.price),
+                    category: newProduct.category,
+                    imageUrl: newProduct.image 
+                });
+                setNewProduct({ name: '', price: '', category: 'General', image: null });
+                if(fileInputRef.current) fileInputRef.current.value = "";
+                setIsSubmitting(false);
+            };
+
+            const handleSeed = async () => {
+                if(window.confirm("This will add 25+ default products to your store. Continue?")) {
+                    setIsSeeding(true);
+                    await seedDatabase();
+                    setIsSeeding(false);
+                }
+            };
+
+            const today = new Date().toDateString();
+            const dailySales = sales.filter(sale => new Date(sale.timestamp).toDateString() === today);
+            const totalSalesAmount = sales.reduce((sum, sale) => sum + (sale.price || 0), 0);
+            const dailySalesAmount = dailySales.reduce((sum, sale) => sum + (sale.price || 0), 0);
+
+            return (
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                    <div className="flex justify-between items-center mb-8">
+                        <h2 className="text-3xl font-bold text-gray-900">Store Dashboard</h2>
+                        {products.length === 0 && (
+                            <button 
+                                onClick={handleSeed}
+                                disabled={isSeeding}
+                                className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg shadow-md transition-colors"
+                            >
+                                {isSeeding ? (
+                                    <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
+                                ) : (
+                                    <Icon name="package-plus" size={18} />
+                                )}
+                                Load Default Inventory
+                            </button>
+                        )}
+                    </div>
+                    
+                    {/* Stats Cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
+                        <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-6 text-white shadow-lg">
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <p className="text-green-100 font-medium mb-1">Total Revenue (All Time)</p>
+                                    <h3 className="text-3xl font-bold">{formatCurrency(totalSalesAmount)}</h3>
+                                </div>
+                                <div className="bg-white/20 p-2 rounded-lg">
+                                    <Icon name="dollar-sign" size={24} />
+                                </div>
+                            </div>
+                            <div className="mt-4 text-green-100 text-sm">
+                                {sales.length} items sold total
+                            </div>
+                        </div>
+
+                        <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl p-6 text-white shadow-lg">
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <p className="text-blue-100 font-medium mb-1">Today's Sales</p>
+                                    <h3 className="text-3xl font-bold">{formatCurrency(dailySalesAmount)}</h3>
+                                </div>
+                                <div className="bg-white/20 p-2 rounded-lg">
+                                    <Icon name="trending-up" size={24} />
+                                </div>
+                            </div>
+                            <div className="mt-4 text-blue-100 text-sm">
+                                {dailySales.length} items sold today
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        {/* Add Product Form */}
+                        <div className="lg:col-span-1">
+                            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 sticky top-24">
+                                <h3 className="text-lg font-bold text-gray-900 mb-4">Add New Product</h3>
+                                <form onSubmit={handleAddProduct} className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Product Name</label>
+                                        <input
+                                            type="text"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                            value={newProduct.name}
+                                            onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
+                                            placeholder="e.g. Cola 330ml"
+                                            required
+                                        />
+                                    </div>
+                                    
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Price (LAK)</label>
+                                        <input
+                                            type="number"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                            value={newProduct.price}
+                                            onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })}
+                                            placeholder="5000"
+                                            required
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                                        <select
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                            value={newProduct.category}
+                                            onChange={(e) => setNewProduct({ ...newProduct, category: e.target.value })}
+                                        >
+                                            <option value="General">General Supplies</option>
+                                            <option value="Candies">Candies</option>
+                                            <option value="Drinks">Soft Drinks</option>
+                                            <option value="Snacks">Snacks</option>
+                                            <option value="Ice Cream">Ice Cream</option>
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Product Image</label>
+                                        <div className="flex items-center justify-center w-full">
+                                            <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                                                {newProduct.image ? (
+                                                    <div className="relative w-full h-full p-2">
+                                                        <img src={newProduct.image} className="w-full h-full object-contain" alt="Preview" />
+                                                        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-40 text-white text-xs opacity-0 hover:opacity-100 transition-opacity">Change</div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                                        <Icon name="image" className="w-8 h-8 mb-3 text-gray-400" />
+                                                        <p className="text-sm text-gray-500"><span className="font-semibold">Click to upload</span></p>
+                                                        <p className="text-xs text-gray-500">PNG, JPG</p>
+                                                    </div>
+                                                )}
+                                                <input ref={fileInputRef} type="file" className="hidden" accept="image/*" onChange={handleImageChange} />
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        type="submit"
+                                        disabled={isSubmitting}
+                                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg shadow transition-colors flex justify-center items-center gap-2"
+                                    >
+                                        {isSubmitting ? (
+                                            <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
+                                        ) : (
+                                            <>
+                                                <Icon name="plus" size={18} />
+                                                Add Product
+                                            </>
+                                        )}
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+
+                        {/* Product List */}
+                        <div className="lg:col-span-2">
+                            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                                <div className="px-6 py-4 border-b border-gray-100">
+                                    <h3 className="text-lg font-bold text-gray-900">Inventory Management</h3>
+                                </div>
+                                <div className="overflow-x-auto">
+                                    <table className="min-w-full divide-y divide-gray-200">
+                                        <thead className="bg-gray-50">
+                                            <tr>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
+                                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="bg-white divide-y divide-gray-200">
+                                            {products.map((product) => (
+                                                <tr key={product.id}>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <div className="flex items-center">
+                                                            <div className="h-10 w-10 flex-shrink-0 bg-gray-100 rounded-md overflow-hidden">
+                                                                {product.imageUrl ? (
+                                                                    <img className="h-10 w-10 object-cover" src={product.imageUrl} alt="" />
+                                                                ) : (
+                                                                    <div className="h-full w-full flex items-center justify-center text-gray-400"><Icon name="image" size={16}/></div>
+                                                                )}
+                                                            </div>
+                                                            <div className="ml-4">
+                                                                <div className="text-sm font-medium text-gray-900">{product.name}</div>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-50 text-blue-800">
+                                                            {product.category}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                        {formatCurrency(product.price)}
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                        <button onClick={() => deleteProduct(product.id)} className="text-red-600 hover:text-red-900">
+                                                            <Icon name="trash-2" size={18} />
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                            {products.length === 0 && (
+                                                <tr>
+                                                    <td colSpan="4" className="px-6 py-8 text-center text-sm text-gray-500">
+                                                        No products added yet. 
+                                                        <button onClick={handleSeed} className="ml-2 text-blue-600 hover:text-blue-800 font-medium">Load Default Inventory</button>
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        function App() {
+            const [view, setView] = useState('home');
+            const [isAdmin, setIsAdmin] = useState(false);
+            const [products, setProducts] = useState([]);
+            const [sales, setSales] = useState([]);
+            const [loading, setLoading] = useState(true);
+            const [isSeeding, setIsSeeding] = useState(false);
+            const [dataTick, setDataTick] = useState(0); // Used to trigger re-fetches
+
+            // Refresh data whenever dataTick changes
+            useEffect(() => {
+                const loadData = async () => {
+                    try {
+                        const prods = await storeDB.getAll('products');
+                        prods.sort((a, b) => b.createdAt - a.createdAt);
+                        setProducts(prods);
+
+                        const s = await storeDB.getAll('sales');
+                        s.sort((a, b) => b.timestamp - a.timestamp);
+                        setSales(s);
+                        
+                        setLoading(false);
+                    } catch (err) {
+                        console.error("Failed to load IndexedDB data", err);
+                    }
+                };
+                loadData();
+            }, [dataTick]);
+
+            const triggerRefresh = () => setDataTick(prev => prev + 1);
+
+            const addProduct = async (product) => {
+                try {
+                    await storeDB.add('products', {
+                        ...product,
+                        createdAt: new Date().getTime()
+                    });
+                    triggerRefresh();
+                } catch (error) {
+                    console.error("Error adding product:", error);
+                    alert("Failed to add product.");
+                }
+            };
+
+            const deleteProduct = async (id) => {
+                if (window.confirm('Are you sure you want to delete this product?')) {
+                    await storeDB.delete('products', id);
+                    triggerRefresh();
+                }
+            };
+
+            const seedDatabase = async () => {
+                setIsSeeding(true);
+                try {
+                    await storeDB.seedDefaults(DEFAULT_PRODUCTS);
+                    triggerRefresh();
+                    alert("Successfully loaded default inventory!");
+                } catch (error) {
+                    console.error("Error seeding database:", error);
+                    alert("Error loading defaults.");
+                } finally {
+                    setIsSeeding(false);
+                }
+            };
+
+            const recordSale = async (product) => {
+                try {
+                    await storeDB.add('sales', {
+                        productId: product.id,
+                        productName: product.name,
+                        price: product.price,
+                        timestamp: new Date().getTime()
+                    });
+                    triggerRefresh();
+                    alert(`Sold 1x ${product.name}! Sale recorded in dashboard.`);
+                } catch (error) {
+                    console.error("Error recording sale:", error);
+                }
+            };
+
+            const handleAdminLogin = () => {
+                setIsAdmin(true);
+                setView('admin');
+            };
+
+            return (
+                <div className="min-h-screen bg-gray-50 font-sans text-gray-800">
+                    <Navigation 
+                        currentView={view} 
+                        setView={setView} 
+                        isAdmin={isAdmin}
+                        setIsAdmin={setIsAdmin}
+                    />
+
+                    <main>
+                        {view === 'home' && <HomeView setView={setView} />}
+                        {view === 'products' && (
+                            <ProductsView 
+                                products={products} 
+                                recordSale={recordSale} 
+                                loading={loading}
+                                seedDatabase={seedDatabase}
+                                isSeeding={isSeeding}
+                            />
+                        )}
+                        {view === 'login' && <AdminLogin onLogin={handleAdminLogin} />}
+                        {view === 'admin' && isAdmin && (
+                            <AdminDashboard 
+                                products={products} 
+                                deleteProduct={deleteProduct}
+                                sales={sales}
+                                addProduct={addProduct}
+                                seedDatabase={seedDatabase}
+                            />
+                        )}
+                        {view === 'admin' && !isAdmin && (
+                            <div className="flex justify-center items-center h-96 text-gray-500">
+                                Access Denied. Please login.
+                            </div>
+                        )}
+                    </main>
+
+                    <footer className="bg-gray-800 text-gray-300 py-8">
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center">
+                            <div className="mb-4 md:mb-0">
+                                <h4 className="text-xl font-bold text-white mb-2">Neerada Store</h4>
+                                <p className="text-sm text-gray-400">Your daily dose of happiness.</p>
+                            </div>
+                            <div className="text-sm">
+                                &copy; {new Date().getFullYear()} Neerada Store. All rights reserved.
+                            </div>
+                        </div>
+                    </footer>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
