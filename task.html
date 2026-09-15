@@ -277,7 +277,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, doc, addDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, doc, addDoc, deleteDoc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'nrd-tuition';
         
@@ -285,7 +285,6 @@
         if (typeof __firebase_config !== 'undefined') {
             firebaseConfig = JSON.parse(__firebase_config);
         } else {
-            // Fallback config for local testing if needed, though usually injected
             firebaseConfig = {
                 apiKey: "AIzaSyBnH_CQMejMwdB7r16-H0UQlbUWkmKkwHY",
                 authDomain: "nrd-tuition.firebaseapp.com",
@@ -300,9 +299,7 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
         
-        let currentUserUid = null;
         let tasks = [];
-        let unsubscribe = null;
 
         // DOM Elements
         const taskForm = document.getElementById('taskForm');
@@ -320,8 +317,6 @@
         document.getElementById('currentYear').textContent = new Date().getFullYear();
 
         async function init() {
-            initTheme();
-            initLogo();
             setDefaultDateTime();
             setupFilters();
             
@@ -329,20 +324,21 @@
             addBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Connecting...';
 
             try {
-                // Use custom token if provided (for persistence across devices for logged-in user)
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    const userCred = await signInWithCustomToken(auth, __initial_auth_token);
-                    currentUserUid = userCred.user.uid;
+                    await signInWithCustomToken(auth, __initial_auth_token);
                 } else {
-                    // Fallback to anonymous auth
-                    const userCred = await signInAnonymously(auth);
-                    currentUserUid = userCred.user.uid;
+                    await signInAnonymously(auth);
                 }
                 
                 addBtn.disabled = false;
                 addBtn.innerHTML = '<i class="fa-solid fa-plus"></i> Add Task';
                 
+                // Connect to shared departmental data in Firebase
                 setupRealtimeListener();
+                setupSettingsListener();
+                setupThemeChange();
+                setupLogoUpload();
+                
             } catch (error) {
                 console.error("Authentication failed:", error);
                 addBtn.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> DB Error';
@@ -362,37 +358,55 @@
             });
         }
 
-        function initTheme() {
-            const savedTheme = localStorage.getItem('neerada_theme') || 'mcdonalds';
-            document.documentElement.setAttribute('data-theme', savedTheme);
-            themeSelect.value = savedTheme;
+        async function updateSetting(key, value) {
+            if (!auth.currentUser) return;
+            const settingsRef = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'app_config');
+            try {
+                await setDoc(settingsRef, { [key]: value }, { merge: true });
+            } catch (error) {
+                console.error("Error updating settings:", error);
+            }
+        }
 
-            themeSelect.addEventListener('change', (e) => {
-                document.documentElement.setAttribute('data-theme', e.target.value);
-                localStorage.setItem('neerada_theme', e.target.value);
+        function setupSettingsListener() {
+            if (!auth.currentUser) return;
+            const settingsRef = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'app_config');
+            
+            onSnapshot(settingsRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    if (data.theme) {
+                        document.documentElement.setAttribute('data-theme', data.theme);
+                        themeSelect.value = data.theme;
+                    } else {
+                        document.documentElement.setAttribute('data-theme', 'mcdonalds'); // Default
+                    }
+                    if (data.logo) {
+                        document.getElementById('displayLogo').src = data.logo;
+                        document.getElementById('printLogo').src = data.logo;
+                        document.getElementById('displayLogo').classList.remove('hidden');
+                        document.getElementById('defaultIcon').classList.add('hidden');
+                    }
+                }
+            }, (error) => {
+                console.error("Firestore Settings Error:", error);
             });
         }
 
-        function initLogo() {
-            const savedLogo = localStorage.getItem('neerada_logo');
-            if (savedLogo) {
-                document.getElementById('displayLogo').src = savedLogo;
-                document.getElementById('printLogo').src = savedLogo;
-                document.getElementById('displayLogo').classList.remove('hidden');
-                document.getElementById('defaultIcon').classList.add('hidden');
-            }
+        function setupThemeChange() {
+            themeSelect.addEventListener('change', (e) => {
+                updateSetting('theme', e.target.value);
+            });
+        }
 
+        function setupLogoUpload() {
             document.getElementById('logoUpload').addEventListener('change', function(e) {
                 const file = e.target.files[0];
                 if (file) {
                     const reader = new FileReader();
                     reader.onload = function(evt) {
                         const dataUrl = evt.target.result;
-                        localStorage.setItem('neerada_logo', dataUrl); // Save for next time
-                        document.getElementById('displayLogo').src = dataUrl;
-                        document.getElementById('printLogo').src = dataUrl;
-                        document.getElementById('displayLogo').classList.remove('hidden');
-                        document.getElementById('defaultIcon').classList.add('hidden');
+                        updateSetting('logo', dataUrl); // Save to Firebase instead of localStorage
                     }
                     reader.readAsDataURL(file);
                 }
@@ -401,18 +415,17 @@
 
         function setDefaultDateTime() {
             const now = new Date();
-            // Adjust to exact local time offset for the HTML datetime-local input formatting
             const local = new Date(now.getTime() - (now.getTimezoneOffset() * 60000));
             taskDateTime.value = local.toISOString().slice(0, 16);
         }
 
         function setupRealtimeListener() {
-            if (!currentUserUid) return;
+            if (!auth.currentUser) return;
             
-            // Using the strict path rules for private data: artifacts/{appId}/users/{userId}/{collectionName}
-            const tasksRef = collection(db, 'artifacts', appId, 'users', currentUserUid, 'tasks');
+            // Using public data path so it syncs across all devices sharing this app instance
+            const tasksRef = collection(db, 'artifacts', appId, 'public', 'data', 'tasks');
             
-            unsubscribe = onSnapshot(tasksRef, (snapshot) => {
+            onSnapshot(tasksRef, (snapshot) => {
                 tasks = snapshot.docs.map(doc => ({
                     id: doc.id,
                     ...doc.data()
@@ -453,10 +466,9 @@
 
         async function handleAddTask(e) {
             e.preventDefault();
-            if (!currentUserUid) return;
+            if (!auth.currentUser) return;
             
             const desc = document.getElementById('taskDesc').value;
-            // Use the selected date/time instead of strictly right now
             const selectedDate = new Date(taskDateTime.value); 
             const dateString = selectedDate.toISOString();
             
@@ -467,7 +479,7 @@
             };
             
             try {
-                const tasksRef = collection(db, 'artifacts', appId, 'users', currentUserUid, 'tasks');
+                const tasksRef = collection(db, 'artifacts', appId, 'public', 'data', 'tasks');
                 await addDoc(tasksRef, newTask);
                 
                 if(!filterSpecificDate.value) {
@@ -476,7 +488,7 @@
                 }
                 
                 document.getElementById('taskDesc').value = '';
-                setDefaultDateTime(); // Reset back to NOW after saving
+                setDefaultDateTime();
                 document.getElementById('taskDesc').focus();
             } catch(err) {
                 console.error("Error adding doc: ", err);
@@ -484,9 +496,9 @@
         }
 
         window.deleteTask = async function(id) {
-            if (!currentUserUid) return;
+            if (!auth.currentUser) return;
             try {
-                const docRef = doc(db, 'artifacts', appId, 'users', currentUserUid, 'tasks', id);
+                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'tasks', id);
                 await deleteDoc(docRef);
             } catch(err) {
                 console.error("Error deleting doc: ", err);
