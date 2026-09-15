@@ -560,28 +560,48 @@
             const apiKey = ""; // The platform will automatically inject the key here
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
 
-            const systemPrompt = "You are an AI assistant for an IT department. The user will provide shorthand notes, keywords, or phrases representing an IT task they just completed. Your job is to convert this into a short, simple, and grammatically correct English sentence. Keep it in the past tense. Keep it under 10 words if possible. Return ONLY the final sentence without quotes. Example input: 'projector room 102'. Example output: 'Fixed the projector in Room 102.'";
+            const systemPrompt = "You are an IT logging assistant. Turn the user's shorthand notes into one simple, grammatically correct English sentence in the past tense. Maximum 12 words. Do not add extra details. Reply ONLY with the final sentence, no quotes, no conversational filler, and no markdown.";
 
             const payload = {
-                contents: [{ parts: [{ text: phrase }] }],
-                systemInstruction: { parts: [{ text: systemPrompt }] }
+                contents: [{ role: "user", parts: [{ text: phrase }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+                generationConfig: {
+                    temperature: 0.1 // Keep it very straightforward and factual
+                }
             };
 
-            try {
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                const result = await response.json();
-                const candidate = result.candidates?.[0];
-                if (candidate && candidate.content?.parts?.[0]?.text) {
-                    return candidate.content.parts[0].text.trim();
+            // Implement exponential backoff for reliability if the network throttles
+            let retries = 3;
+            let delay = 1000;
+
+            for (let i = 0; i < retries; i++) {
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (response.ok && result.candidates && result.candidates[0].content) {
+                        let text = result.candidates[0].content.parts[0].text.trim();
+                        // Strip any quotes if the AI accidentally included them
+                        text = text.replace(/^["']|["']$/g, '').trim();
+                        return text;
+                    } else if (response.status === 429) {
+                        // Throttled, wait and retry
+                        await new Promise(r => setTimeout(r, delay));
+                        delay *= 2;
+                    } else {
+                        break; // If it's another type of error, exit the loop
+                    }
+                } catch (error) {
+                    await new Promise(r => setTimeout(r, delay));
+                    delay *= 2;
                 }
-            } catch (error) {
-                console.error("Error enhancing text:", error);
             }
-            return phrase; // Fallback to original text if the AI request fails
+            return phrase; // Fallback to original text if all retries fail
         }
 
         async function handleAddTask(e) {
