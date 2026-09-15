@@ -6,8 +6,8 @@
     <title>Neerada IT Dept - Task Tracker</title>
     
     <!-- Replace 'favicon.ico' and 'apple-touch-icon.png' with your actual logo files -->
-    <link rel="icon" type="image/x-icon" href="favicon.ico">
-    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+    <link id="dynamicFavicon" rel="icon" type="image/x-icon" href="favicon.ico">
+    <link id="dynamicAppleTouch" rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
 
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
@@ -153,17 +153,43 @@
         /* Print Specific Styles */
         @media print {
             body { background: white !important; color: black !important; }
-            .no-print { display: none !important; }
+            .no-print, .main-header { display: none !important; }
             .theme-panel { background: none !important; backdrop-filter: none !important; border: none !important; box-shadow: none !important; }
             .print-only { display: block !important; }
             #taskList { max-height: none !important; overflow: visible !important; }
             table { width: 100%; border-collapse: collapse; }
-            th, td { border: 1px solid #ddd !important; padding: 8px !important; text-align: left !important; color: #000 !important; }
-            th { background-color: #f3f4f6 !important; -webkit-print-color-adjust: exact; color: #000 !important; }
+            th, td { border: 1px solid #ddd !important; padding: 8px !important; color: #000 !important; }
+            th { background-color: #f3f4f6 !important; -webkit-print-color-adjust: exact; color: #000 !important; text-align: center !important; }
+            
+            /* Print overrides for Date/Time column */
+            .print-row-dt { flex-direction: row !important; align-items: baseline !important; gap: 8px !important; }
+            .print-hide-icon { display: none !important; }
+            .dt-time { background: transparent !important; border: none !important; padding: 0 !important; color: #000 !important; font-size: 1.125rem !important; }
+            .dt-date { color: #000 !important; }
         }
         
         .print-only { display: none; }
         
+        /* Breathing Outline Decor Animation */
+        @keyframes breathePulse {
+            0% { -webkit-text-stroke: 1px var(--text-muted); opacity: 0.2; transform: scale(0.95); }
+            50% { -webkit-text-stroke: 2.5px var(--time-color); opacity: 0.7; transform: scale(1.05); }
+            100% { -webkit-text-stroke: 1px var(--date-color); opacity: 0.2; transform: scale(0.95); }
+        }
+        .decor-icon {
+            color: transparent !important;
+            animation: breathePulse 6s infinite ease-in-out;
+        }
+        .decor-icon:nth-child(1) { animation-delay: 0s; }
+        .decor-icon:nth-child(2) { animation-delay: 1.5s; }
+        .decor-icon:nth-child(3) { animation-delay: 3s; }
+        .decor-icon:nth-child(4) { animation-delay: 4.5s; }
+        .decor-icon:nth-child(5) { animation-delay: 1s; }
+        .decor-icon:nth-child(6) { animation-delay: 2.5s; }
+        .decor-icon:nth-child(7) { animation-delay: 4s; }
+        .decor-icon:nth-child(8) { animation-delay: 0.5s; }
+        .decor-icon:nth-child(9) { animation-delay: 2s; }
+
         /* Utility for color-scheme */
         color-scheme: light dark;
     </style>
@@ -171,22 +197,22 @@
 <body class="p-4 md:p-8 flex flex-col items-center relative min-h-screen">
 
     <!-- IT Themed Background Decor -->
-    <div class="fixed inset-0 pointer-events-none overflow-hidden z-0 flex flex-wrap justify-around items-center opacity-[0.04] theme-text no-print">
-        <i class="fa-solid fa-server text-8xl m-10"></i>
-        <i class="fa-solid fa-code text-9xl m-12"></i>
-        <i class="fa-solid fa-microchip text-8xl m-8"></i>
-        <i class="fa-solid fa-database text-9xl m-16"></i>
-        <i class="fa-solid fa-network-wired text-8xl m-10"></i>
-        <i class="fa-solid fa-laptop-code text-9xl m-14"></i>
-        <i class="fa-solid fa-wifi text-8xl m-12"></i>
-        <i class="fa-brands fa-usb text-8xl m-10"></i>
-        <i class="fa-solid fa-shield-halved text-9xl m-12"></i>
+    <div class="fixed inset-0 pointer-events-none overflow-hidden z-0 flex flex-wrap justify-around items-center no-print">
+        <i class="fa-solid fa-server text-8xl m-10 decor-icon"></i>
+        <i class="fa-solid fa-code text-9xl m-12 decor-icon"></i>
+        <i class="fa-solid fa-microchip text-8xl m-8 decor-icon"></i>
+        <i class="fa-solid fa-database text-9xl m-16 decor-icon"></i>
+        <i class="fa-solid fa-network-wired text-8xl m-10 decor-icon"></i>
+        <i class="fa-solid fa-laptop-code text-9xl m-14 decor-icon"></i>
+        <i class="fa-solid fa-wifi text-8xl m-12 decor-icon"></i>
+        <i class="fa-brands fa-usb text-8xl m-10 decor-icon"></i>
+        <i class="fa-solid fa-shield-halved text-9xl m-12 decor-icon"></i>
     </div>
 
     <div class="w-full max-w-7xl theme-panel p-6 md:p-10 relative z-10">
         
         <!-- Header -->
-        <header class="mb-8 flex flex-col md:flex-row justify-between items-center border-b theme-border pb-6">
+        <header class="main-header mb-8 flex flex-col md:flex-row justify-between items-center border-b theme-border pb-6">
             <div class="flex items-center gap-4 mb-4 md:mb-0">
                 <!-- Interactive Logo Upload -->
                 <div class="w-16 h-16 rounded-full theme-icon-box flex items-center justify-center cursor-pointer relative overflow-hidden group shadow-inner" onclick="document.getElementById('logoUpload').click()" title="Click to upload custom logo">
@@ -448,6 +474,10 @@
                         document.getElementById('printLogo').src = data.logo;
                         document.getElementById('displayLogo').classList.remove('hidden');
                         document.getElementById('defaultIcon').classList.add('hidden');
+                        
+                        // Update Favicon and Apple Touch Icon dynamically
+                        document.getElementById('dynamicFavicon').href = data.logo;
+                        document.getElementById('dynamicAppleTouch').href = data.logo;
                     }
                 }
             }, (error) => {
@@ -684,12 +714,12 @@
 
                 tr.innerHTML = `
                     <td class="p-4 whitespace-nowrap align-top">
-                        <div class="flex flex-col gap-2">
-                            <span class="font-bold text-lg tracking-tight" style="color: var(--date-color); font-family: 'Fira Code', monospace;">
-                                <i class="fa-regular fa-calendar-days mr-1.5 opacity-80 text-sm"></i>${dateDisplay}
+                        <div class="flex flex-col gap-2 print-row-dt">
+                            <span class="font-bold text-lg tracking-tight dt-date" style="color: var(--date-color); font-family: 'Fira Code', monospace;">
+                                <i class="fa-regular fa-calendar-days mr-1.5 opacity-80 text-sm print-hide-icon"></i>${dateDisplay}
                             </span>
-                            <span class="text-sm font-bold bg-opacity-10 px-2 py-1 rounded-md inline-block w-max border border-opacity-20" style="color: var(--time-color); background-color: color-mix(in srgb, var(--time-color) 15%, transparent); border-color: var(--time-color); font-family: 'Fira Code', monospace;">
-                                <i class="fa-regular fa-clock mr-1.5 opacity-80"></i>${timeDisplay}
+                            <span class="text-sm font-bold bg-opacity-10 px-2 py-1 rounded-md inline-block w-max border border-opacity-20 dt-time" style="color: var(--time-color); background-color: color-mix(in srgb, var(--time-color) 15%, transparent); border-color: var(--time-color); font-family: 'Fira Code', monospace;">
+                                <i class="fa-regular fa-clock mr-1.5 opacity-80 print-hide-icon"></i>${timeDisplay}
                             </span>
                         </div>
                     </td>
