@@ -11,6 +11,7 @@
 
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
@@ -32,6 +33,8 @@
             --icon-color: #0284c7;
             --table-border: rgba(255, 255, 255, 0.3);
             --table-hover: rgba(255, 255, 255, 0.5);
+            --date-color: #0369a1;
+            --time-color: #0284c7;
         }
 
         html[data-theme="mcdonalds"] {
@@ -52,6 +55,8 @@
             --icon-color: #da291c;
             --table-border: #eeeeee;
             --table-hover: #fffdf5;
+            --date-color: #b32117;
+            --time-color: #d97706;
         }
 
         html[data-theme="dark"] {
@@ -72,6 +77,8 @@
             --icon-color: #3b82f6;
             --table-border: #334155;
             --table-hover: #293548;
+            --date-color: #93c5fd;
+            --time-color: #fbbf24;
         }
 
         body {
@@ -161,9 +168,22 @@
         color-scheme: light dark;
     </style>
 </head>
-<body class="p-4 md:p-8 flex flex-col items-center">
+<body class="p-4 md:p-8 flex flex-col items-center relative min-h-screen">
 
-    <div class="w-full max-w-5xl theme-panel p-6 md:p-10 relative">
+    <!-- IT Themed Background Decor -->
+    <div class="fixed inset-0 pointer-events-none overflow-hidden z-0 flex flex-wrap justify-around items-center opacity-[0.04] theme-text no-print">
+        <i class="fa-solid fa-server text-8xl m-10"></i>
+        <i class="fa-solid fa-code text-9xl m-12"></i>
+        <i class="fa-solid fa-microchip text-8xl m-8"></i>
+        <i class="fa-solid fa-database text-9xl m-16"></i>
+        <i class="fa-solid fa-network-wired text-8xl m-10"></i>
+        <i class="fa-solid fa-laptop-code text-9xl m-14"></i>
+        <i class="fa-solid fa-wifi text-8xl m-12"></i>
+        <i class="fa-brands fa-usb text-8xl m-10"></i>
+        <i class="fa-solid fa-shield-halved text-9xl m-12"></i>
+    </div>
+
+    <div class="w-full max-w-7xl theme-panel p-6 md:p-10 relative z-10">
         
         <!-- Header -->
         <header class="mb-8 flex flex-col md:flex-row justify-between items-center border-b theme-border pb-6">
@@ -251,9 +271,9 @@
                 <table class="w-full text-left border-collapse">
                     <thead>
                         <tr class="border-b theme-border opacity-80">
-                            <th class="p-4 font-bold theme-text w-48">Date & Time</th>
-                            <th class="p-4 font-bold theme-text">Description</th>
-                            <th class="p-4 font-bold theme-text w-24 text-center no-print">Actions</th>
+                            <th class="p-4 font-bold theme-text w-56 text-lg">Date & Time</th>
+                            <th class="p-4 font-bold theme-text text-lg">Description</th>
+                            <th class="p-4 font-bold theme-text w-32 text-center no-print text-lg">Actions</th>
                         </tr>
                     </thead>
                     <tbody id="taskList">
@@ -274,10 +294,48 @@
 
     </div>
 
+    <!-- Edit Task Modal -->
+    <div id="editModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
+        <div class="theme-panel p-6 w-full max-w-lg transform scale-95 transition-transform duration-300 rounded-2xl">
+            <h3 class="text-2xl font-bold theme-text mb-4 flex items-center"><i class="fa-solid fa-pen-to-square mr-3 text-[var(--icon-color)]"></i>Edit Task</h3>
+            <form id="editForm" class="flex flex-col gap-4">
+                <div>
+                    <label class="block text-sm font-semibold theme-text mb-1">Task Description</label>
+                    <input type="text" id="editTaskDesc" required class="w-full px-4 py-3 rounded-xl theme-input">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold theme-text mb-1">Date & Time</label>
+                    <input type="datetime-local" id="editTaskDateTime" required class="w-full px-4 py-3 rounded-xl theme-input font-medium" style="font-family: 'Fira Code', monospace;">
+                </div>
+                <div class="flex justify-end gap-3 mt-4">
+                    <button type="button" onclick="closeModal('editModal')" class="px-6 py-3 rounded-xl font-bold bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors">Cancel</button>
+                    <button type="submit" class="theme-btn px-6 py-3 rounded-xl font-bold shadow-lg flex items-center gap-2"><i class="fa-solid fa-floppy-disk"></i> Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="deleteModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
+        <div class="theme-panel p-8 w-full max-w-md transform scale-95 transition-transform duration-300 rounded-2xl text-center">
+            <div class="w-20 h-20 rounded-full bg-red-100 text-red-500 flex items-center justify-center mx-auto mb-5 text-4xl shadow-inner">
+                <i class="fa-solid fa-trash-can"></i>
+            </div>
+            <h3 class="text-3xl font-black theme-text mb-3">Delete Task?</h3>
+            <p class="theme-text-muted mb-8 text-lg">Are you sure you want to remove this log? This action cannot be undone.</p>
+            <div class="flex flex-col sm:flex-row justify-center gap-3">
+                <button type="button" onclick="closeModal('deleteModal')" class="px-6 py-3 rounded-xl font-bold bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors w-full">Cancel</button>
+                <button type="button" onclick="executeDelete()" class="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg transition-colors w-full flex justify-center items-center gap-2">
+                    <i class="fa-solid fa-circle-exclamation"></i> Yes, Delete
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, doc, addDoc, deleteDoc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, doc, addDoc, deleteDoc, updateDoc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'nrd-tuition';
         
@@ -300,6 +358,8 @@
         const db = getFirestore(app);
         
         let tasks = [];
+        let currentDeleteId = null;
+        let currentEditId = null;
 
         // DOM Elements
         const taskForm = document.getElementById('taskForm');
@@ -345,6 +405,8 @@
             }
             
             taskForm.addEventListener('submit', handleAddTask);
+            document.getElementById('editForm').addEventListener('submit', handleEditTask);
+            
             filterMonth.addEventListener('change', () => { clearSpecificDateFilter(); renderTasks(); });
             filterYear.addEventListener('change', () => { clearSpecificDateFilter(); renderTasks(); });
             filterSpecificDate.addEventListener('change', () => {
@@ -495,14 +557,82 @@
             }
         }
 
-        window.deleteTask = async function(id) {
-            if (!auth.currentUser) return;
+        // Modal Controls
+        window.openModal = function(id) {
+            const modal = document.getElementById(id);
+            const inner = modal.querySelector('.transform');
+            modal.classList.remove('hidden');
+            // Force reflow
+            void modal.offsetWidth;
+            modal.classList.remove('opacity-0');
+            inner.classList.remove('scale-95');
+        }
+
+        window.closeModal = function(id) {
+            const modal = document.getElementById(id);
+            const inner = modal.querySelector('.transform');
+            modal.classList.add('opacity-0');
+            inner.classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+        }
+
+        window.promptDeleteTask = function(id) {
+            currentDeleteId = id;
+            openModal('deleteModal');
+        }
+
+        window.executeDelete = async function() {
+            if (!auth.currentUser || !currentDeleteId) return;
             try {
-                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'tasks', id);
+                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'tasks', currentDeleteId);
                 await deleteDoc(docRef);
+                closeModal('deleteModal');
+                currentDeleteId = null;
             } catch(err) {
                 console.error("Error deleting doc: ", err);
             }
+        }
+
+        window.openEditTask = function(id, desc, dateStr) {
+            currentEditId = id;
+            document.getElementById('editTaskDesc').value = desc;
+            
+            // Format date for datetime-local input matching local time zone
+            const local = new Date(new Date(dateStr).getTime() - (new Date().getTimezoneOffset() * 60000));
+            document.getElementById('editTaskDateTime').value = local.toISOString().slice(0, 16);
+            
+            openModal('editModal');
+        }
+
+        async function handleEditTask(e) {
+            e.preventDefault();
+            if (!auth.currentUser || !currentEditId) return;
+
+            const newDesc = document.getElementById('editTaskDesc').value;
+            const newDate = new Date(document.getElementById('editTaskDateTime').value).toISOString();
+
+            try {
+                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'tasks', currentEditId);
+                await updateDoc(docRef, {
+                    desc: newDesc,
+                    date: newDate
+                });
+                closeModal('editModal');
+                currentEditId = null;
+            } catch(err) {
+                console.error("Error updating doc: ", err);
+            }
+        }
+
+        function escapeHtml(unsafe) {
+            return unsafe
+                 .replace(/&/g, "&amp;")
+                 .replace(/</g, "&lt;")
+                 .replace(/>/g, "&gt;")
+                 .replace(/"/g, "&quot;")
+                 .replace(/'/g, "&#039;");
         }
 
         function renderTasks() {
@@ -550,19 +680,29 @@
                 const d = new Date(task.date);
                 const dateDisplay = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
                 const timeDisplay = d.toLocaleTimeString('en-US', { hour: '2-digit', minute:'2-digit' });
+                const safeDesc = escapeHtml(task.desc);
 
                 tr.innerHTML = `
-                    <td class="p-4 theme-text font-medium whitespace-nowrap">
-                        <div class="flex flex-col">
-                            <span>${dateDisplay}</span>
-                            <span class="text-xs theme-text-muted mt-1">${timeDisplay}</span>
+                    <td class="p-4 whitespace-nowrap align-top">
+                        <div class="flex flex-col gap-2">
+                            <span class="font-bold text-lg tracking-tight" style="color: var(--date-color); font-family: 'Fira Code', monospace;">
+                                <i class="fa-regular fa-calendar-days mr-1.5 opacity-80 text-sm"></i>${dateDisplay}
+                            </span>
+                            <span class="text-sm font-bold bg-opacity-10 px-2 py-1 rounded-md inline-block w-max border border-opacity-20" style="color: var(--time-color); background-color: color-mix(in srgb, var(--time-color) 15%, transparent); border-color: var(--time-color); font-family: 'Fira Code', monospace;">
+                                <i class="fa-regular fa-clock mr-1.5 opacity-80"></i>${timeDisplay}
+                            </span>
                         </div>
                     </td>
-                    <td class="p-4 theme-text font-medium">${task.desc}</td>
-                    <td class="p-4 text-center no-print">
-                        <button onclick="deleteTask('${task.id}')" class="text-red-500 hover:text-red-700 transition-colors p-2 rounded-full hover:bg-red-50 opacity-50 group-hover:opacity-100" title="Delete Task">
-                            <i class="fa-solid fa-trash-can"></i>
-                        </button>
+                    <td class="p-4 theme-text text-lg align-top pt-4 font-medium leading-relaxed">${safeDesc}</td>
+                    <td class="p-4 text-center no-print align-top pt-4">
+                        <div class="flex justify-center gap-2">
+                            <button onclick="openEditTask('${task.id}', '${safeDesc.replace(/'/g, "\\'")}', '${task.date}')" class="text-blue-500 hover:text-white hover:bg-blue-500 transition-all p-2.5 rounded-xl bg-blue-50 shadow-sm opacity-80 group-hover:opacity-100" title="Edit Task">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                            </button>
+                            <button onclick="promptDeleteTask('${task.id}')" class="text-red-500 hover:text-white hover:bg-red-500 transition-all p-2.5 rounded-xl bg-red-50 shadow-sm opacity-80 group-hover:opacity-100" title="Delete Task">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>
                     </td>
                 `;
                 taskList.appendChild(tr);
