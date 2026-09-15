@@ -276,23 +276,30 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, doc, addDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyBnH_CQMejMwdB7r16-H0UQlbUWkmKkwHY",
-            authDomain: "nrd-tuition.firebaseapp.com",
-            projectId: "nrd-tuition",
-            storageBucket: "nrd-tuition.firebasestorage.app",
-            messagingSenderId: "392714893047",
-            appId: "1:392714893047:web:363ea8e258e55e7c50c5f2"
-        };
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'nrd-tuition';
+        
+        let firebaseConfig;
+        if (typeof __firebase_config !== 'undefined') {
+            firebaseConfig = JSON.parse(__firebase_config);
+        } else {
+            // Fallback config for local testing if needed, though usually injected
+            firebaseConfig = {
+                apiKey: "AIzaSyBnH_CQMejMwdB7r16-H0UQlbUWkmKkwHY",
+                authDomain: "nrd-tuition.firebaseapp.com",
+                projectId: "nrd-tuition",
+                storageBucket: "nrd-tuition.firebasestorage.app",
+                messagingSenderId: "392714893047",
+                appId: "1:392714893047:web:363ea8e258e55e7c50c5f2"
+            };
+        }
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
         
-        const myAppId = "nrd-tuition";
         let currentUserUid = null;
         let tasks = [];
         let unsubscribe = null;
@@ -322,8 +329,15 @@
             addBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Connecting...';
 
             try {
-                const userCred = await signInAnonymously(auth);
-                currentUserUid = userCred.user.uid;
+                // Use custom token if provided (for persistence across devices for logged-in user)
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    const userCred = await signInWithCustomToken(auth, __initial_auth_token);
+                    currentUserUid = userCred.user.uid;
+                } else {
+                    // Fallback to anonymous auth
+                    const userCred = await signInAnonymously(auth);
+                    currentUserUid = userCred.user.uid;
+                }
                 
                 addBtn.disabled = false;
                 addBtn.innerHTML = '<i class="fa-solid fa-plus"></i> Add Task';
@@ -395,7 +409,8 @@
         function setupRealtimeListener() {
             if (!currentUserUid) return;
             
-            const tasksRef = collection(db, 'artifacts', myAppId, 'users', currentUserUid, 'tasks');
+            // Using the strict path rules for private data: artifacts/{appId}/users/{userId}/{collectionName}
+            const tasksRef = collection(db, 'artifacts', appId, 'users', currentUserUid, 'tasks');
             
             unsubscribe = onSnapshot(tasksRef, (snapshot) => {
                 tasks = snapshot.docs.map(doc => ({
@@ -452,7 +467,7 @@
             };
             
             try {
-                const tasksRef = collection(db, 'artifacts', myAppId, 'users', currentUserUid, 'tasks');
+                const tasksRef = collection(db, 'artifacts', appId, 'users', currentUserUid, 'tasks');
                 await addDoc(tasksRef, newTask);
                 
                 if(!filterSpecificDate.value) {
@@ -471,7 +486,7 @@
         window.deleteTask = async function(id) {
             if (!currentUserUid) return;
             try {
-                const docRef = doc(db, 'artifacts', myAppId, 'users', currentUserUid, 'tasks', id);
+                const docRef = doc(db, 'artifacts', appId, 'users', currentUserUid, 'tasks', id);
                 await deleteDoc(docRef);
             } catch(err) {
                 console.error("Error deleting doc: ", err);
